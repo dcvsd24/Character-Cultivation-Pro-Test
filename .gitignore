@@ -1,0 +1,17 @@
+# 角色养成一条龙Pro版 - Git忽略配置
+
+# 运行时数据文件
+script_cooldown_record.json
+completed_tasks.json
+config.json
+
+# 路径脚本目录
+pathing/
+
+# 临时文件
+*.tmp
+*.log
+
+# 系统文件
+.DS_Store
+Thumbs.db
