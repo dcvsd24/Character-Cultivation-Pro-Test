@@ -14,12 +14,16 @@ eval(file.readTextSync("lib/inventory.js"));
 eval(file.readTextSync("lib/farming.js"));
 eval(file.readTextSync("lib/collection.js"));
 eval(file.readTextSync("lib/character.js"));
+eval(file.readTextSync("lib/ui_navigator.js"));
+eval(file.readTextSync("lib/calculator.js"));
+eval(file.readTextSync("lib/image_recognition.js"));
+eval(file.readTextSync("lib/file_utils.js"));
 
 log.info("所有模块加载完成");
 
 // 模块加载验证
 function checkModulesLoaded() {
-    const requiredModules = ['Constants', 'Utils', 'TaskManager', 'OcrHelper', 'Navigation', 'Combat', 'Inventory', 'Farming', 'Collection', 'Character'];
+    const requiredModules = ['Constants', 'Utils', 'TaskManager', 'OcrHelper', 'Navigation', 'Combat', 'Inventory', 'Farming', 'Collection', 'Character', 'ImageRecognition', 'FileUtils', 'expCalculator', 'moraCalculation', 'resinCalculation'];
     const missingModules = [];
     
     for (const moduleName of requiredModules) {
@@ -160,9 +164,20 @@ const Main = async () => {
         await genshin.returnMainUi();
         await sleep(1500);
         
-        // ============== 最后一步：执行材料采集流程 ==========
+        // ============== 执行材料采集流程 ==========
         log.info("📌 开始执行材料采集流程...");
         await runMaterialCollection();
+        // 返回游戏主界面
+        log.info("📌 正在校准并返回游戏主界面...");
+        await genshin.returnMainUi();
+        await sleep(1500);
+        // ============== 最后一步：地脉花管理流程 ==========
+        log.info("📌 开始执行地脉花管理流程...");
+        await runLeyLineManagement();
+         // 返回游戏主界面
+        log.info("📌 正在校准并返回游戏主界面...");
+        await genshin.returnMainUi();
+        await sleep(1500);
         
     } catch (globalError) {
         log.error(`❌ 整体流程执行失败: ${globalError.message}`);
@@ -205,11 +220,57 @@ async function runMaterialCollection() {
     log.info(`- 武器1材料：${allWeapons1Keywords.length}个关键词`);
     log.info(`- 武器2材料：${allWeapons2Keywords.length}个关键词`);
     
+    // 检查是否有需要执行的材料采集
+    let hasAnyMaterialToCollect = false;
+    let hasLocalToCollect = false;
+    let hasMagicToCollect = false;
+    let hasWeapons1ToCollect = false;
+    let hasWeapons2ToCollect = false;
+    
+    // 队伍切换开关
+    let hasSwitchedToLocalTeam = false;
+    let hasSwitchedToCombatTeam = false;
+    
+    // 检查地方特产
+    if (localKeyword && Number(config["needLocalAmount"]) > 0) {
+        hasAnyMaterialToCollect = true;
+        hasLocalToCollect = true;
+    }
+    
+    // 检查敌人与魔物
+    if (allMagicKeywords.length > 0 && Number(config["needMonsterStar3"]) > 0) {
+        hasAnyMaterialToCollect = true;
+        hasMagicToCollect = true;
+    }
+    
+    // 检查武器1材料
+    if (allWeapons1Keywords.length > 0 && Number(config["needamount1 stars3"]) > 0) {
+        hasAnyMaterialToCollect = true;
+        hasWeapons1ToCollect = true;
+    }
+    
+    // 检查武器2材料
+    if (allWeapons2Keywords.length > 0 && Number(config["needamount2 stars3"]) > 0) {
+        hasAnyMaterialToCollect = true;
+        hasWeapons2ToCollect = true;
+    }
+    
+    // 只有在有需要执行的材料采集时，才前往指定地点并切换队伍
+    if (hasAnyMaterialToCollect) {
+        log.info("📌 正在前往指定地点...");
+        await genshin.tp(2297.6201171875, -824.5869140625);
+    } else {
+        log.info("⚠️ 没有需要执行的材料采集，跳过前往指定地点和切换队伍");
+    }
+    
     try {
         // 1. 地方特产
         if (localKeyword) {
-            await genshin.tp(2297.6201171875, -824.5869140625);
-            await Utils.switchPartySafe(settings.teamName2);
+            if (hasLocalToCollect && !hasSwitchedToLocalTeam) {
+                log.info("📌 切换到采集队伍...");
+                await Utils.switchPartySafe(settings.teamName2);
+                hasSwitchedToLocalTeam = true;
+            }
             await executeMaterialCollection({
                 type: 'local',
                 rootFolder: Constants.FOLDER_LOCAL,
@@ -225,8 +286,11 @@ async function runMaterialCollection() {
         
         // 2. 敌人与魔物
         if (allMagicKeywords.length > 0) {
-            await genshin.tp(2297.6201171875, -824.5869140625);
-            await Utils.switchPartySafe(settings.teamName);
+            if (hasMagicToCollect && !hasSwitchedToCombatTeam) {
+                log.info("📌 切换到战斗队伍...");
+                await Utils.switchPartySafe(settings.teamName);
+                hasSwitchedToCombatTeam = true;
+            }
             await executeMaterialCollection({
                 type: 'magic',
                 rootFolder: Constants.FOLDER_MAGIC,
@@ -241,8 +305,11 @@ async function runMaterialCollection() {
         
         // 3. 武器1材料
         if (allWeapons1Keywords.length > 0) {
-            await genshin.tp(2297.6201171875, -824.5869140625);
-            await Utils.switchPartySafe(settings.teamName);
+            if (hasWeapons1ToCollect && !hasSwitchedToCombatTeam) {
+                log.info("📌 切换到战斗队伍...");
+                await Utils.switchPartySafe(settings.teamName);
+                hasSwitchedToCombatTeam = true;
+            }
             await executeMaterialCollection({
                 type: 'weapons1',
                 rootFolder: Constants.FOLDER_WEAPONS1,
@@ -257,8 +324,11 @@ async function runMaterialCollection() {
         
         // 4. 武器2材料
         if (allWeapons2Keywords.length > 0) {
-            await genshin.tp(2297.6201171875, -824.5869140625);
-            await Utils.switchPartySafe(settings.teamName);
+            if (hasWeapons2ToCollect && !hasSwitchedToCombatTeam) {
+                log.info("📌 切换到战斗队伍...");
+                await Utils.switchPartySafe(settings.teamName);
+                hasSwitchedToCombatTeam = true;
+            }
             await executeMaterialCollection({
                 type: 'weapons2',
                 rootFolder: Constants.FOLDER_WEAPONS2,
@@ -326,16 +396,20 @@ async function executeMaterialCollection(options) {
     
     for (const keyword of keywordList) {
         let targetDirs = [];
+        const basePath = "pathing";
         
         if (rootFolder === Constants.FOLDER_LOCAL) {
             const localRootDir = `${Constants.ASSETS_BASE}/${rootFolder}`.replace(/\\/g, "/");
+            const relativeLocalRoot = localRootDir.startsWith(basePath + "/") ? localRootDir.substring(basePath.length + 1) : localRootDir;
             try {
-                const regionDirs = file.readPathSync(localRootDir) || [];
+                const regionDirs = Array.from(pathingScript.ReadPathSync(relativeLocalRoot) || []);
                 for (const regionDir of regionDirs) {
-                    if (file.isFolder(regionDir)) {
-                        const regionName = regionDir.split(/[\\/]/).pop();
-                        const targetDir = `${localRootDir}/${regionName}/${keyword}`.replace(/\\/g, "/");
-                        if (file.isFolder(targetDir)) {
+                    const regionRelative = regionDir.replace(/\\/g, "/").replace(/^\/+/, "");
+                    if (pathingScript.IsFolder(regionRelative)) {
+                        const regionName = regionRelative.split(/[\\/]/).pop();
+                        const targetRelative = `${relativeLocalRoot}/${regionName}/${keyword}`.replace(/\\/g, "/");
+                        if (pathingScript.IsFolder(targetRelative)) {
+                            const targetDir = `${localRootDir}/${regionName}/${keyword}`.replace(/\\/g, "/");
                             targetDirs.push(targetDir);
                             log.info(`✅ 检测到有效路径：${targetDir}`);
                         }
@@ -347,8 +421,9 @@ async function executeMaterialCollection(options) {
         } else {
             const aliasList = Collection.getAllAliasesByStandardName(keyword);
             for (const alias of aliasList) {
-                const aliasDir = `${Constants.ASSETS_BASE}/${rootFolder}/${alias}`.replace(/\\/g, "/");
-                if (file.isFolder(aliasDir)) {
+                const aliasRelative = `${rootFolder}/${alias}`.replace(/\\/g, "/").replace(/^\/+/, "");
+                if (pathingScript.IsFolder(aliasRelative)) {
+                    const aliasDir = `${Constants.ASSETS_BASE}/${rootFolder}/${alias}`.replace(/\\/g, "/");
                     targetDirs.push(aliasDir);
                     log.info(`✅ 匹配到别名目录：${aliasDir}（关键词：${keyword}，匹配别名：${alias}）`);
                 }
@@ -430,7 +505,8 @@ async function executeLocalBatch(allScripts, isExcludeGrassGod, materialType, cu
         
         if (totalCanGet >= currentNeed) {
             log.info(`📌 [${materialType}] 本次执行路径数量(${totalCanGet}) >= 需求量(${currentNeed})，触发角色识别`);
-            await performCharacterRecognition(materialType);
+            const recognitionType = materialType === '地方特产' ? 'break' : 'all';
+            await performCharacterRecognition(materialType, recognitionType);
             
             const newConfig = Utils.readJson(Constants.CONFIG_PATH);
             const newNeed = Number(newConfig["needLocalAmount"]) || 0;
@@ -506,7 +582,13 @@ async function executeMonsterBatch(allScripts, configKey, materialType, currentU
         }
         
         if (shouldTriggerRecognition) {
-            await performCharacterRecognition(materialType);
+            let recognitionType = 'all';
+            if (type === 'magic') {
+                recognitionType = 'break';
+            } else if (type === 'weapons1' || type === 'weapons2') {
+                recognitionType = 'weapon';
+            }
+            await performCharacterRecognition(materialType, recognitionType);
             const newConfig = Utils.readJson(Constants.CONFIG_PATH);
             const newAmount = Number(newConfig[configKey]) || 0;
             
@@ -526,14 +608,376 @@ async function executeMonsterBatch(allScripts, configKey, materialType, currentU
 }
 
 // 执行角色识别
-async function performCharacterRecognition(materialType) {
-    log.info(`📌 开始执行${materialType}的角色识别与材料计算流程...`);
+async function performCharacterRecognition(materialType, recognitionType = "all") {
+    log.info(`📌 开始执行${materialType}的角色识别与材料计算流程（识别类型：${recognitionType}）...`);
     try {
-        await Character.findCharacterAndGetLevel();
+        await Character.findCharacterAndGetLevel(recognitionType);
         log.info(`✅ ${materialType}角色识别与材料更新完成`);
         await sleep(2000);
     } catch (e) {
         log.error(`❌ ${materialType}角色识别失败：${e.message}`);
+    }
+}
+
+// 地脉花管理流程
+async function runLeyLineManagement() {
+    try {
+        log.info("===== 地脉花管理流程开始执行 =====");
+        
+        // 检查体力值
+        const stamina = await Inventory.queryStaminaValue();
+        const minStamina = 20;
+        
+        if (stamina < minStamina) {
+            log.warn(`体力不足！当前体力：${stamina}，需要：${minStamina}`);
+            log.info("体力不足，跳过地脉花流程");
+            return;
+        }
+        
+        log.info(`体力充足：${stamina}，开始地脉花`);
+        
+        // 初始化地脉花次数
+        let expRuns = 0;
+        let moraRuns = 0;
+        
+        // 读取并验证设置
+        const { 
+            targetRoleLevel, 
+            targetBreakLevel,
+            characterLevel, 
+            characterBreak,
+            talentLevels,
+            targetTalentLevels,
+            weaponStar,
+            weaponLevel,
+            weaponBreakLevel,
+            targetWeaponLevel,
+            targetWeaponBreakLevel,
+            moraAmount
+        } = readAndValidateSettingsForLeyLine();
+
+        // 检查是否已经是满级
+        if (targetRoleLevel >= 90 && characterLevel >= 90) {
+            log.info(`角色已是满级（${characterLevel}级），无需经验书`);
+            expRuns = 0;
+        }
+
+        // 获取世界等级（摩拉计算需要）
+        const worldLevel = await getWorldLevelForLeyLine();
+
+        // 只有不满级时才获取经验书数据
+        let expBookData = { totalBookExperience: 0 };
+        if (!(targetRoleLevel >= 90 && characterLevel >= 90)) {
+            expBookData = await getExperienceBookDataForLeyLine();
+        }
+
+        // 计算升级所需经验
+        const requiredExp = expCalculator.calculateExpRequired(characterLevel, 0, targetRoleLevel);
+        log.info(`从${characterLevel}级升级到${targetRoleLevel}级需要${requiredExp}经验`);
+
+        // 初始化经验书需求
+        let bookRequirements = {
+            purple: 0,
+            blue: 0,
+            green: 0,
+            summary: "无需经验书"
+        };
+
+        // 如果已经是满级或不需要经验，跳过经验书相关计算
+        if (requiredExp <= 0) {
+            log.info(`无需经验书，跳过经验书地脉花任务`);
+            expRuns = 0;
+        } else {
+            // 转换为经验书数量
+            bookRequirements = expCalculator.convertExpToBooks(requiredExp);
+            log.info(bookRequirements.summary);
+
+            // 计算经验书地脉花次数
+            const totalBookExperience = expBookData.totalBookExperience;
+            log.info(`当前库存经验书总经验: ${totalBookExperience}`);
+            const expShortage = Math.max(0, requiredExp - totalBookExperience);
+            log.info(`经验缺口计算: ${requiredExp} - ${totalBookExperience} = ${expShortage}`);
+            if (expShortage > 0) {
+                const resinRequirements = resinCalculation.calculateExpBookRequirements(expShortage, worldLevel);
+                expRuns = resinRequirements.runs.totalChallenges;
+                log.info(`经验缺口: ${expShortage}, 经验书地脉花次数: ${expRuns}`);
+            } else {
+                log.info(`经验书充足，无需执行经验书地脉花任务`);
+            }
+        }
+
+        // 计算摩拉需求
+        const moraConfig = {
+            characterLevel: characterLevel,
+            characterBreak: characterBreak,
+            targetRoleLevel: targetRoleLevel,
+            targetBreakLevel: targetBreakLevel,
+            talentLevels: talentLevels,
+            targetTalentLevels: targetTalentLevels,
+            weaponStar: weaponStar,
+            weaponLevel: weaponLevel,
+            weaponBreakLevel: weaponBreakLevel,
+            targetWeaponLevel: targetWeaponLevel,
+            targetWeaponBreakLevel: targetWeaponBreakLevel,
+            bookRequirements: bookRequirements,
+            currentMora: moraAmount
+        };
+        
+        const moraResult = moraCalculation.calculateTotalMoraRequirement(moraConfig);
+        log.info(`摩拉计算结果: ${JSON.stringify(moraResult, null, 2)}`);
+
+        // 计算摩拉缺口和地脉花次数
+        let moraShortage = 0;
+        if (moraResult.remainingMora < 0) {
+            moraShortage = -moraResult.remainingMora;
+            log.info(`摩拉缺口: ${moraShortage}`);
+            const moraLeyLineResult = resinCalculation.calculateMoraLeyLineRuns(moraShortage, worldLevel);
+            moraRuns = moraLeyLineResult.totalRuns;
+            log.info(`摩拉地脉花次数: ${moraRuns}, 每次摩拉掉落: ${moraLeyLineResult.moraPerRun}`);
+        }
+
+        // 执行地脉花任务
+        if (expRuns > 0 || moraRuns > 0) {
+            await runAutoLeyLineOutcropTask(expRuns, moraRuns, stamina);
+        } else {
+            log.info("经验书和摩拉都已充足，无需执行地脉花任务");
+        }
+
+        await genshin.returnMainUi();
+        log.info("✅ 地脉花管理流程执行完成");
+
+    } catch (error) {
+        log.error(`地脉花管理流程执行失败: ${error.message}`);
+        log.error(`错误堆栈: ${error.stack}`);
+        notification.send(`地脉花管理流程执行失败: ${error.message}`);
+
+        try {
+            await genshin.returnMainUi();
+        } catch (uiError) {
+            log.warn(`返回主界面失败: ${uiError.message}`);
+        }
+    }
+    
+    log.info("===== 地脉花管理流程执行结束 =====");
+}
+
+// 读取并验证配置（地脉花管理专用）
+function readAndValidateSettingsForLeyLine() {
+    const bossRequireCounts = settings.bossRequireCounts;
+
+    const levelMapping = {
+        "20级": { level: 40, break: 40 },
+        "40级": { level: 50, break: 50 },
+        "50级": { level: 60, break: 60 },
+        "60级": { level: 70, break: 70 },
+        "70级": { level: 80, break: 80 },
+        "80级": { level: 90, break: 90 }
+    };
+
+    const targetLevelInfo = levelMapping[bossRequireCounts];
+    if (!targetLevelInfo) {
+        throw new Error("非法输入或未输入目标角色等级，请选择有效的等级");
+    }
+    const targetRoleLevel = targetLevelInfo.level;
+    const targetBreakLevel = targetLevelInfo.break;
+
+    const weaponLevelMapping = {
+        "20级": { level: 20, break: 20 },
+        "40级": { level: 40, break: 40 },
+        "50级": { level: 50, break: 50 },
+        "60级": { level: 60, break: 60 },
+        "70级": { level: 70, break: 70 },
+        "80级": { level: 80, break: 80 }
+    };
+    const weaponRequireCounts = settings.weaponMaterialRequireCounts;
+    const targetWeaponInfo = weaponLevelMapping[weaponRequireCounts] || { level: 80, break: 5 };
+    const targetWeaponLevel = targetWeaponInfo.level;
+    const targetWeaponBreakLevel = targetWeaponInfo.break;
+
+    let characterLevel = 0;
+    let characterBreak = 0;
+    let talentLevels = [1, 1, 1];
+    let weaponStar = "四星";
+    let weaponLevel = 1;
+    let weaponBreakLevel = 0;
+    let moraAmount = 0;
+
+    try {
+        const configContent = file.readTextSync("config.json");
+        const configArray = JSON.parse(configContent);
+
+        const levelConfig = configArray.find(item => item.characterLevel !== undefined);
+        if (levelConfig) {
+            characterLevel = Number(levelConfig.characterLevel);
+        }
+
+        const breakConfig = configArray.find(item => item.characterBreak !== undefined);
+        if (breakConfig) {
+            const breakStr = breakConfig.characterBreak;
+            const match = breakStr.match(/(\d+)级/);
+            if (match) {
+                const breakLevel = parseInt(match[1]);
+                characterBreak = breakStr.includes("已突破") ? 90 : breakLevel;
+            }
+        }
+
+        const talentConfig = configArray.find(item => item.talentLevels !== undefined);
+        if (talentConfig) {
+            const talents = talentConfig.talentLevels.split('-').map(Number);
+            talentLevels = talents;
+        }
+
+        const weaponStarConfig = configArray.find(item => item.weaponStar !== undefined);
+        if (weaponStarConfig) {
+            weaponStar = weaponStarConfig.weaponStar;
+        }
+
+        const weaponLevelConfig = configArray.find(item => item.weaponLevel !== undefined);
+        if (weaponLevelConfig) {
+            const levelStr = weaponLevelConfig.weaponLevel;
+            const match = levelStr.match(/(\d+)级/);
+            if (match) {
+                weaponLevel = parseInt(match[1]);
+                weaponBreakLevel = levelStr.includes("已突破") ? 90 : weaponLevel;
+            }
+        }
+
+        const moraConfig = configArray.find(item => item.moraAmount !== undefined);
+        if (moraConfig) {
+            moraAmount = Number(moraConfig.moraAmount);
+        }
+    } catch (error) {
+        log.error(`读取config.json失败: ${error.message}`);
+        throw new Error("读取config.json失败");
+    }
+
+    if (isNaN(characterLevel) || characterLevel <= 0 || characterLevel > 90) {
+        throw new Error("config.json中的characterLevel配置无效，请输入1-90之间的有效数字");
+    }
+
+    const talentRequireCounts = settings.talentBookRequireCounts;
+    const targetTalentLevels = talentRequireCounts ? talentRequireCounts.split('-').map(Number) : [10, 10, 10];
+    
+    return { 
+        targetRoleLevel, 
+        targetBreakLevel,
+        characterLevel, 
+        characterBreak,
+        talentLevels,
+        targetTalentLevels,
+        weaponStar,
+        weaponLevel,
+        weaponBreakLevel,
+        targetWeaponLevel,
+        targetWeaponBreakLevel,
+        moraAmount
+    };
+}
+
+// 获取经验书数据（地脉花管理专用）
+async function getExperienceBookDataForLeyLine() {
+    try {
+        const expBookInfo = await ImageRecognition.IdentifyExperienceBook();
+        if (!expBookInfo) {
+            return { totalBookExperience: 0 };
+        }
+        const bookData = FileUtils.getExpBookData(expBookInfo, true);
+        if (bookData && bookData.length > 0) {
+            const totalItem = bookData.find(item => item.bookName === '总计');
+            return { totalBookExperience: totalItem ? totalItem.totalExp : 0 };
+        }
+        return { totalBookExperience: 0 };
+    } catch (error) {
+        log.warn(`识别经验书失败: ${error.message}`);
+        return { totalBookExperience: 0 };
+    }
+}
+
+// 获取世界等级（地脉花管理专用）
+async function getWorldLevelForLeyLine() {
+    try {
+        const worldLevel = await ImageRecognition.WorldLevelRecognition();
+        if (!worldLevel) {
+            log.warn("世界等级识别失败，使用默认值0");
+            return 0;
+        }
+        return worldLevel;
+    } catch (error) {
+        log.error(`获取世界等级失败: ${error.message}`);
+        log.warn("使用默认世界等级0");
+        return 0;
+    }
+}
+
+// 执行地脉花任务
+async function runAutoLeyLineOutcropTask(expRuns, moraRuns, stamina) {
+    try {
+        if (moraRuns > 0) {
+            const moraMaxRounds = moraRuns >= 5 ? 2 : 1;
+            for (let i = 0; i < moraMaxRounds; i++) {
+                log.info(`开始执行藏金之花，次数: ${moraRuns}, 第${i + 1}轮`);
+                // 检查体力值
+             const stamina = await Inventory.queryStaminaValue();
+             const minStamina = 20;
+              if (stamina < minStamina) {
+            log.warn(`体力值${stamina}低于${minStamina}，跳过当前轮`);
+            continue;
+        }
+                
+                const resin = await Inventory.queryStaminaValue();
+                const resinSupportedCount = Math.floor(resin / 40) + (resin % 40 >= 20 ? 1 : 0);
+                const actualCount = Math.min(moraRuns, resinSupportedCount);
+                log.info(`当前树脂: ${resin}, 树脂支持次数: ${resinSupportedCount}, 实际执行次数: ${actualCount}`);
+                
+                let taskParam = new AutoLeyLineOutcropParam();
+                taskParam.Count = actualCount;
+                taskParam.Country = settings.adventurePath || "蒙德";
+                taskParam.LeyLineOutcropType = "藏金之花";
+                taskParam.Team = settings.teamName || "";
+                taskParam.IsResinExhaustionMode = false;
+                taskParam.UseAdventurerHandbook = false;
+                taskParam.IsGoToSynthesizer = false;
+                taskParam.UseFragileResin = false;
+                taskParam.UseTransientResin = false;
+                taskParam.IsNotification = false;
+                taskParam.FightConfig.StrategyName = settings.strategyName || "auto";
+                await dispatcher.RunAutoLeyLineOutcropTask(taskParam);
+                log.info("藏金之花完成");
+            }
+        }
+
+        if (expRuns > 0) {
+            const expMaxRounds = expRuns >= 5 ? 2 : 1;
+            for (let i = 0; i < expMaxRounds; i++) {
+                log.info(`开始执行启示之花，次数: ${expRuns}, 第${i + 1}轮`);
+                
+                const resinSupportedCount = Math.floor(stamina / 40) + (stamina % 40 >= 20 ? 1 : 0);
+                const actualCount = Math.min(expRuns, resinSupportedCount);
+                log.info(`当前树脂: ${stamina}, 树脂支持次数: ${resinSupportedCount}, 实际执行次数: ${actualCount}`);
+                
+                let taskParam = new AutoLeyLineOutcropParam();
+                taskParam.Count = actualCount;
+                taskParam.Country = settings.adventurePath || "蒙德";
+                taskParam.LeyLineOutcropType = "启示之花";
+                taskParam.Team = settings.teamName || "";
+                taskParam.IsResinExhaustionMode = false;
+                taskParam.UseAdventurerHandbook = false;
+                taskParam.IsGoToSynthesizer = false;
+                taskParam.UseFragileResin = false;
+                taskParam.UseTransientResin = false;
+                taskParam.IsNotification = false;
+                taskParam.FightConfig.StrategyName = settings.strategyName || "auto";
+                await dispatcher.RunAutoLeyLineOutcropTask(taskParam);
+                log.info("启示之花完成");
+            }
+        }
+
+        log.info("自动地脉花完成");
+    } catch (error) {
+        log.error(`执行地脉花任务失败：${error.message}`);
+        if (error.message !== "树脂耗尽，任务结束") {
+            throw error;
+        }
     }
 }
 

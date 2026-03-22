@@ -1,5 +1,5 @@
 [
-      {
+  {
     "name": "Character",
     "type": "input-text",
     "label": "请输入培养的角色名称（不要输错角色的名称，否则会识别出错）"
@@ -169,6 +169,11 @@
     "label": "挑战队伍名称"
   },
   {
+    "name": "strategyName",
+    "type": "input-text",
+    "label": "战斗策略名称（默认为auto）"
+  },
+  {
     "name": "teamName2",
     "type": "input-text",
     "label": "采集队伍名称"
@@ -191,5 +196,19 @@
     "type": "checkbox",
     "label": "签署霸王条款开启使用，出了事跟作者无关",
     "default": false
+  },
+  {
+    "name": "adventurePath",
+    "type": "select",
+    "label": "前往指定地区的地脉之花",
+    "options": [
+      "蒙德",
+      "璃月",
+      "稻妻",
+      "枫丹",
+      "纳塔",
+      "挪德卡莱"
+    ],
+    "default": "蒙德"
   }
 ]
