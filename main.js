@@ -88,8 +88,36 @@ const Main = async () => {
         
         // 天赋书刷取逻辑
         for (let i = 0; i < 1; i++) {
-            const talentBookName = eval(`settings.talentBookName${i}`);
-            if (talentBookName != "无" && talentBookName) {
+            const talentBookCandidates = [
+                "自由",
+                "抗争",
+                "诗文",
+                "繁荣",
+                "勤劳",
+                "黄金",
+                "浮世",
+                "风雅",
+                "天光",
+                "净言",
+                "巧思",
+                "笃行",
+                "公平",
+                "正义",
+                "秩序",
+                "角逐",
+                "焚燔",
+                "纷争",
+                "月光",
+                "乐园",
+                "浪迹"
+            ];
+            const talentBookNameFromConfig = getConfigValue("talentDomainName");
+            if (!talentBookNameFromConfig || talentBookNameFromConfig.trim() === "") {
+                log.info(`天赋书配置为空，跳过执行`);
+                continue;
+            }
+            const talentBookName = Utils.fuzzyMatch(talentBookNameFromConfig, talentBookCandidates);
+            if (talentBookName && talentBookName !== "无") {
                 try {
                     const talentBookConfigKey = `talentBookRequireCounts${i}`;
                     const talentBookCountsStr = getConfigValue(talentBookConfigKey);
@@ -106,14 +134,46 @@ const Main = async () => {
                     notification.send(`天赋书${talentBookName}刷取失败，错误信息: ${error.message}`);
                 }
             } else {
-                log.info(`没有选择刷取天赋书${i + 1}，跳过执行`);
+                if (!talentBookName) {
+                    log.warn(`天赋书"${talentBookNameFromConfig}"模糊匹配失败，未找到匹配项，跳过执行`);
+                } else {
+                    log.info(`没有选择刷取天赋书${i + 1}，跳过执行`);
+                }
             }
         }
         
         // 武器材料刷取逻辑
         for (let i = 0; i < 1; i++) {
-            const weaponName = eval(`settings.weaponName${i}`);
-            if (weaponName != "无" && weaponName) {
+            const weaponDomainCandidates = [
+                "高塔孤王",
+                "凛风奔狼",
+                "狮牙斗士",
+                "孤云寒林",
+                "雾海云间",
+                "漆黑陨铁",
+                "远海夷地",
+                "鸣神御灵",
+                "今昔剧话",
+                "谧林涓露",
+                "绿洲花园",
+                "烈日威权",
+                "幽谷弦音",
+                "纯圣露滴",
+                "无垢之海",
+                "贡祭炽心",
+                "谵妄圣主",
+                "神合秘烟",
+                "奇巧秘器",
+                "长夜燧火",
+                "终北遗嗣"
+            ];
+            const weaponDomainNameFromConfig = getConfigValue("weaponDomainName");
+            if (!weaponDomainNameFromConfig || weaponDomainNameFromConfig.trim() === "") {
+                log.info(`武器材料配置为空，跳过执行`);
+                continue;
+            }
+            const weaponName = Utils.fuzzyMatch(weaponDomainNameFromConfig, weaponDomainCandidates);
+            if (weaponName && weaponName !== "无") {
                 try {
                     const weaponConfigKey = `weaponMaterialRequireCounts${i}`;
                     const weaponCountsStr = getConfigValue(weaponConfigKey);
@@ -130,14 +190,65 @@ const Main = async () => {
                     notification.send(`武器材料${weaponName}刷取失败，错误信息: ${error.message}`);
                 }
             } else {
-                log.info(`没有选择刷取武器材料${i + 1}，跳过执行`);
+                if (!weaponName) {
+                    log.warn(`武器材料"${weaponDomainNameFromConfig}"模糊匹配失败，未找到匹配项，跳过执行`);
+                } else {
+                    log.info(`没有选择刷取武器材料${i + 1}，跳过执行`);
+                }
             }
         }
         
         // 首领材料刷取逻辑
         for (let i = 0; i < 1; i++) {
-            const bossName = eval(`settings.bossName${i}`);
-            if (bossName != "无" && bossName) {
+            const bossMaterialCandidates = [
+                "蕴光月守宫",
+                "爆炎树",
+                "半永恒统辖矩阵",
+                "掣电树",
+                "纯水精灵",
+                "翠翎恐蕈",
+                "深罪浸礼者",
+                "深邃摹结株",
+                "风蚀沙虫",
+                "「冰风组曲」歌裴莉娅",
+                "「冰风组曲」科培琉司",
+                "古岩龙蜥",
+                "恒常机关阵列",
+                "急冻树",
+                "金焰绒翼龙暴君",
+                "雷音权现",
+                "灵觉隐修的迷者",
+                "魔像督军",
+                "秘源机兵·统御械",
+                "秘源机兵·构型械",
+                "魔偶剑鬼",
+                "千年珍珠骏麟",
+                "熔岩辉龙像",
+                "贪食匿叶龙山王",
+                "铁甲熔火帝皇",
+                "无相之草",
+                "无相之火",
+                "无相之雷",
+                "无相之水",
+                "无相之岩",
+                "水形幻人",
+                "实验性场力发生装置",
+                "遗迹巨蛇",
+                "隐山猊兽",
+                "兆载永劫龙兽",
+                "重拳出击鸭",
+                "蕴光月幻蝶",
+                "霜夜巡天灵主",
+                "超重型陆巡舰·机动战垒",
+                "深黯魇语之主"
+            ];
+            const bossMaterialNameFromConfig = getConfigValue("bossMaterialName");
+            if (!bossMaterialNameFromConfig || bossMaterialNameFromConfig.trim() === "") {
+                log.info(`首领材料配置为空，跳过执行`);
+                continue;
+            }
+            const bossName = Utils.fuzzyMatch(bossMaterialNameFromConfig, bossMaterialCandidates);
+            if (bossName && bossName !== "无") {
                 try {
                     const bossConfigKey = `bossRequireCounts${i}`;
                     const bossRequireCounts = getConfigValue(bossConfigKey);
@@ -152,7 +263,11 @@ const Main = async () => {
                     notification.send(`首领材料${bossName}刷取失败，错误信息: ${error.message}`);
                 }
             } else {
-                log.info(`没有选择挑战首领${i + 1}，跳过执行`);
+                if (!bossName) {
+                    log.warn(`首领材料"${bossMaterialNameFromConfig}"模糊匹配失败，未找到匹配项，跳过执行`);
+                } else {
+                    log.info(`没有选择挑战首领${i + 1}，跳过执行`);
+                }
             }
         }
         
