@@ -3,7 +3,8 @@
 
 log.info("开始加载模块...");
 
-// 顶层直接eval加载模块 - 这是唯一正确的方式
+eval(file.readTextSync("lib/checkVersion.js"));
+
 eval(file.readTextSync("lib/constants.js"));
 eval(file.readTextSync("lib/utils.js"));
 eval(file.readTextSync("lib/taskManager.js"));
@@ -47,7 +48,8 @@ function checkModulesLoaded() {
 // 主逻辑
 const Main = async () => {
     try {
-        // 验证模块加载
+        await printVersion();
+
         if (!checkModulesLoaded()) {
             log.error("模块加载失败，脚本终止");
             return;
