@@ -1,7 +1,7 @@
 {
   "manifest_version": 1,
   "name": "角色养成一条龙Pro版（测试2.1）",
-  "version": "1.7.0",
+  "version": "2.1.1",
   "description": "详见readme.md",
   "authors": [
     {
@@ -13,5 +13,9 @@
   "saved_files": [
     "completed_tasks.json"
   ],
-  "main": "main.js"
+  "main": "main.js",
+  "http_allowed_urls": [
+    "https://raw.githubusercontent.com/dcvsd24/Character-Cultivation-Pro-Test/*",
+    "https://github.com/dcvsd24/Character-Cultivation-Pro-Test/*"
+  ]
 }
