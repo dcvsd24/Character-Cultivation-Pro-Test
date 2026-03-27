@@ -89,6 +89,12 @@
     "default": false
   },
   {
+    "name": "checkVersionEnabled",
+    "type": "checkbox",
+    "label": "启用版本检查（脚本启动时检查更新，如网络较慢可关闭）",
+    "default": true
+  },
+  {
     "name": "adventurePath",
     "type": "select",
     "label": "前往指定地区的地脉之花",
