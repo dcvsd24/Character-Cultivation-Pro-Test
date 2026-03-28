@@ -60,7 +60,7 @@ const Main = async () => {
         // 初始化配置文件
         function initConfigFiles() {
             const configFiles = [
-                { path: "config.json", defaultContent: [] },
+                { path: Constants.CONFIG_PATH, defaultContent: [] },
                 { path: Constants.COMPLETED_TASKS_FILE, defaultContent: {} },
                 { path: Constants.MAPPING_PATH, defaultContent: {} },
                 { path: Constants.SCRIPT_COOLDOWN_RECORD, defaultContent: {} }
@@ -96,7 +96,7 @@ const Main = async () => {
         // 封装从config.json读取配置的通用函数
         function getConfigValue(key) {
             try {
-                const configContent = file.readTextSync("config.json");
+                const configContent = file.readTextSync(Constants.CONFIG_PATH);
                 const configData = JSON.parse(configContent);
                 for (const item of configData) {
                     if (item.hasOwnProperty(key)) {
@@ -947,7 +947,7 @@ function readAndValidateSettingsForLeyLine() {
     let moraAmount = 0;
 
     try {
-        const configContent = file.readTextSync("config.json");
+        const configContent = file.readTextSync(Constants.CONFIG_PATH);
         const configArray = JSON.parse(configContent);
 
         const levelConfig = configArray.find(item => item.characterLevel !== undefined);
