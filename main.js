@@ -57,33 +57,6 @@ const Main = async () => {
         
         log.info("✅ 所有模块验证通过");
         
-        // 初始化配置文件
-        function initConfigFiles() {
-            const configFiles = [
-                { path: Constants.CONFIG_PATH, defaultContent: [] },
-                { path: Constants.COMPLETED_TASKS_FILE, defaultContent: {} },
-                { path: Constants.MAPPING_PATH, defaultContent: {} },
-                { path: Constants.SCRIPT_COOLDOWN_RECORD, defaultContent: {} }
-            ];
-            
-            configFiles.forEach(function(configFile) {
-                try {
-                    file.readTextSync(configFile.path);
-                } catch (error) {
-                    if (error.message && error.message.includes("Could not find file")) {
-                        try {
-                            file.writeTextSync(configFile.path, JSON.stringify(configFile.defaultContent, null, 2));
-                        } catch (writeErr) {
-                            log.error(`创建${configFile.path}失败: ${writeErr.message}`);
-                        }
-                    }
-                }
-            });
-        }
-        
-        initConfigFiles();
-        log.info("✅ 配置文件初始化完成");
-        
         // 检查霸王条款
         if (!settings.unfairContractTerms) {
             throw new Error('未签署霸王条款，无法使用');
