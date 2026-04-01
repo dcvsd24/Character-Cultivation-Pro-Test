@@ -561,8 +561,11 @@ async function executeMaterialCollection(options) {
     
     log.info(`✅ 共扫描到 ${allScriptFiles.length} 个路径脚本文件`);
     
+    // 过滤掉异常路径
+    const normalScripts = Collection.filterAbnormalPaths(allScriptFiles);
+    
     // 过滤掉在冷却中的脚本
-    const availableScripts = Collection.filterScriptsByCooldown(allScriptFiles, cooldown, cooldownRecord, currentUid);
+    const availableScripts = Collection.filterScriptsByCooldown(normalScripts, cooldown, cooldownRecord, currentUid);
     
     if (availableScripts.length === 0) {
         log.info(`[${materialType}] 所有脚本都在冷却中，跳过执行`);
