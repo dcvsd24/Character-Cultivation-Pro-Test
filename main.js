@@ -604,6 +604,7 @@ async function executeLocalBatch(allScripts, isExcludeGrassGod, materialType, cu
         
         if (currentNeed <= 0) {
             log.info(`✅ [${materialType}] 需求已满足，停止执行`);
+            Utils.addNotification(`✅ [${materialType}] 需求已满足，停止执行`);
             isCompleted = true;
             break;
         }
@@ -633,6 +634,7 @@ async function executeLocalBatch(allScripts, isExcludeGrassGod, materialType, cu
             
             if (newNeed <= 0) {
                 log.info(`✅ [${materialType}] 需求已满足，停止执行`);
+                Utils.addNotification(`✅ [${materialType}] 需求已满足，停止执行`);
                 isCompleted = true;
                 break;
             }
@@ -642,6 +644,7 @@ async function executeLocalBatch(allScripts, isExcludeGrassGod, materialType, cu
         
         if (remainingScripts.length === 0) {
             log.info(`✅ [${materialType}] 所有路径已执行完毕`);
+            notification.send(`✅ [${materialType}] 所有路径已执行完毕`);
             isCompleted = true;
         }
         
@@ -671,6 +674,7 @@ async function executeMonsterBatch(allScripts, configKey, materialType, currentU
         
         if (currentAmount <= 0) {
             log.info(`✅ [${materialType}] 材料需求已满足，停止执行`);
+            Utils.addNotification(`✅ [${materialType}] 材料需求已满足，停止执行`);
             isCompleted = true;
             break;
         }
@@ -697,6 +701,7 @@ async function executeMonsterBatch(allScripts, configKey, materialType, currentU
         
         if (remainingScripts.length === 0) {
             log.info(`✅ [${materialType}] 所有路径已执行完毕`);
+            notification.send(`✅ [${materialType}] 所有路径已执行完毕`);
             isCompleted = true;
             break;
         }
@@ -716,6 +721,7 @@ async function executeMonsterBatch(allScripts, configKey, materialType, currentU
             
             if (newAmount <= 0) {
                 log.info(`✅ [${materialType}] 材料需求已满足，停止执行剩余路径`);
+                Utils.addNotification(`✅ [${materialType}] 材料需求已满足，停止执行剩余路径`);
                 isCompleted = true;
                 break;
             }
@@ -751,6 +757,7 @@ async function runLeyLineManagement() {
         if (stamina < minStamina) {
             log.warn(`体力不足！当前体力：${stamina}，需要：${minStamina}`);
             log.info("体力不足，跳过地脉花流程");
+            notification.send("体力不足，跳过地脉花流程");
             return;
         }
         
@@ -823,6 +830,7 @@ async function runLeyLineManagement() {
                 log.info(`经验缺口: ${expShortage}, 经验书地脉花次数: ${expRuns}`);
             } else {
                 log.info(`经验书充足，无需执行经验书地脉花任务`);
+                Utils.addNotification(`经验书充足，无需执行经验书地脉花任务`);
             }
         }
 
@@ -861,6 +869,7 @@ async function runLeyLineManagement() {
             await runAutoLeyLineOutcropTask(expRuns, moraRuns, stamina);
         } else {
             log.info("经验书和摩拉都已充足，无需执行地脉花任务");
+            notification.send("经验书和摩拉都已充足，无需执行地脉花任务");
         }
 
         await genshin.returnMainUi();
@@ -1036,6 +1045,7 @@ async function runAutoLeyLineOutcropTask(expRuns, moraRuns, stamina) {
             const moraMaxRounds = moraRuns >= 5 ? 2 : 1;
             for (let i = 0; i < moraMaxRounds; i++) {
                 log.info(`开始执行藏金之花，次数: ${moraRuns}, 第${i + 1}轮`);
+                
                 // 检查体力值
              const stamina = await Inventory.queryStaminaValue();
              const minStamina = 20;
@@ -1048,6 +1058,7 @@ async function runAutoLeyLineOutcropTask(expRuns, moraRuns, stamina) {
                 const resinSupportedCount = Math.floor(resin / 40) + (resin % 40 >= 20 ? 1 : 0);
                 const actualCount = Math.min(moraRuns, resinSupportedCount);
                 log.info(`当前树脂: ${resin}, 树脂支持次数: ${resinSupportedCount}, 实际执行次数: ${actualCount}`);
+                notification.send(`当前树脂: ${resin}, 树脂支持次数: ${resinSupportedCount}, 实际执行次数: ${actualCount}`);
                 
                 let taskParam = new AutoLeyLineOutcropParam();
                 taskParam.Count = actualCount;
@@ -1074,6 +1085,7 @@ async function runAutoLeyLineOutcropTask(expRuns, moraRuns, stamina) {
                 const resinSupportedCount = Math.floor(stamina / 40) + (stamina % 40 >= 20 ? 1 : 0);
                 const actualCount = Math.min(expRuns, resinSupportedCount);
                 log.info(`当前树脂: ${stamina}, 树脂支持次数: ${resinSupportedCount}, 实际执行次数: ${actualCount}`);
+                notification.send(`当前树脂: ${stamina}, 树脂支持次数: ${resinSupportedCount}, 实际执行次数: ${actualCount}`);
                 
                 let taskParam = new AutoLeyLineOutcropParam();
                 taskParam.Count = actualCount;
@@ -1093,6 +1105,7 @@ async function runAutoLeyLineOutcropTask(expRuns, moraRuns, stamina) {
         }
 
         log.info("自动地脉花完成");
+        notification.send("自动地脉花完成");
     } catch (error) {
         log.error(`执行地脉花任务失败：${error.message}`);
         if (error.message !== "树脂耗尽，任务结束") {
