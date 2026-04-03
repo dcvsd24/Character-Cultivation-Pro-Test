@@ -59,7 +59,10 @@ const Main = async () => {
         
         // 检查霸王条款
         if (!settings.unfairContractTerms) {
+           log.warn("{0}", Constants.ERROR_NO_README_MD);
+            await sleep(10000)
             throw new Error('未签署霸王条款，无法使用');
+            
         }
         
         // 加载已完成任务记录
@@ -556,6 +559,9 @@ async function executeMaterialCollection(options) {
     
     if (allScriptFiles.length === 0) {
         log.warn(`⚠️ 未找到${materialType}的JSON路径脚本`);
+        log.warn("{0}", Constants.ERROR_NO_SCRIPTS);
+        log.warn("{0}", Constants.ERROR_NO_PATHING);
+        await sleep(15000);
         return false;
     }
     
