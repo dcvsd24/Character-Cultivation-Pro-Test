@@ -50,8 +50,9 @@
 2. 使用前请先订阅敌人与魔物，地方区域特产的所有地图追踪路径。
 3. 目前暂不支持多个角色培养。如需培养多个角色，请在调度器再次添加脚本进行修改【新添加】的脚本自定义配置。
 4. ⚠️地下地图需要使用TemplateMatch匹配方式，否则地图追踪路径可能会出错，非JS脚本问题，请前往设置，下滑动找到通用功能设置区域里的，地图追踪优先使用的特征匹配方式，如果为SIFT，请更改为TemplateMatch，注意重启BGI后才会生效。
-5. 首次运行出现ReadTextSync 异常: "Could not find file '\BetterGI\User\JsScript\角色养成一条龙Pro版\data\run\_data\completed\_tasks.json'."的报错为正常现象，后续其他文件也会同样出现，无需理会，脚本会自动创建文件。
-6. 如果检查版本更新时间过长可以修改脚本自定义配置，取消勾选，跳过检查版本更新。
+5. 水下地图，请不要使用纳维莱特等，角色颜色和海底颜色蓝色相同的角色。
+6. 首次运行出现ReadTextSync 异常: "Could not find file '\BetterGI\User\JsScript\角色养成一条龙Pro版\data\run\_data\completed\_tasks.json'."的报错为正常现象，后续其他文件config.json，script_cooldown_record.json也会同样出现，无需理会，脚本会自动创建文件。
+7. 如果检查版本更新时间过长可以修改脚本自定义配置，取消勾选，跳过检查版本更新。
 
 
 ## 更新日志
