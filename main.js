@@ -87,7 +87,7 @@ const Main = async () => {
         
         // ========== 第一步：执行角色识别与材料计算流程 ==========
         log.info("📌 开始执行角色识别与材料计算流程...");
-        await Character.findCharacterAndGetLevel();
+       await Character.findCharacterAndGetLevel();
         
         // ============== 材料刷取逻辑开始 ==============
         
@@ -401,6 +401,7 @@ async function runMaterialCollection() {
                 currentUid,
                 cooldownRecord
             });
+            Utils.sendBufferedNotifications();
             await sleep(1000);
         }
         
@@ -458,6 +459,7 @@ async function runMaterialCollection() {
                 currentUid,
                 cooldownRecord
             });
+            Utils.sendBufferedNotifications();
         }
         
     } catch (globalErr) {
@@ -492,11 +494,13 @@ async function executeMaterialCollection(options) {
     
     if (currentAmount <= 0 && type !== 'local') {
         log.info(`[${materialType}] 需求数量为0，跳过执行`);
+        Utils.addNotification(`[${materialType}] 需求数量为0，跳过执行`);
         return false;
     }
     
     if (!keywords || (Array.isArray(keywords) && keywords.length === 0)) {
         log.info(`[${materialType}] 未配置关键词，跳过执行`);
+        Utils.addNotification(`[${materialType}] 未配置关键词，跳过执行`);
         return false;
     }
     
@@ -559,6 +563,7 @@ async function executeMaterialCollection(options) {
     
     if (allScriptFiles.length === 0) {
         log.warn(`⚠️ 未找到${materialType}的JSON路径脚本`);
+        notification.send(`⚠️ 未找到${materialType}的JSON路径脚本`);
         log.warn("{0}", Constants.ERROR_NO_SCRIPTS);
         log.warn("{0}", Constants.ERROR_NO_PATHING);
         await sleep(15000);
@@ -619,6 +624,7 @@ async function executeLocalBatch(allScripts, isExcludeGrassGod, materialType, cu
         
         if (scriptsToExecute.length === 0) {
             log.info(`⚠️ [${materialType}] 无需要执行的脚本`);
+            Utils.addNotification(`⚠️ [${materialType}] 无需要执行的脚本`);
             break;
         }
         
@@ -650,7 +656,7 @@ async function executeLocalBatch(allScripts, isExcludeGrassGod, materialType, cu
         
         if (remainingScripts.length === 0) {
             log.info(`✅ [${materialType}] 所有路径已执行完毕`);
-            notification.send(`✅ [${materialType}] 所有路径已执行完毕`);
+            Utils.addNotification(`✅ [${materialType}] 所有路径已执行完毕`);
             isCompleted = true;
         }
         
@@ -707,7 +713,7 @@ async function executeMonsterBatch(allScripts, configKey, materialType, currentU
         
         if (remainingScripts.length === 0) {
             log.info(`✅ [${materialType}] 所有路径已执行完毕`);
-            notification.send(`✅ [${materialType}] 所有路径已执行完毕`);
+            Utils.addNotification(`✅ [${materialType}] 所有路径已执行完毕`);
             isCompleted = true;
             break;
         }
