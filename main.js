@@ -527,7 +527,7 @@ async function executeMaterialCollection(options) {
     const config = Utils.readJson(Constants.CONFIG_PATH);
     const currentAmount = Number(config[configKey]) || 0;
     
-    if (currentAmount <= 0 && type !== 'local') {
+    if (currentAmount <= 0) {
         log.info(`[${materialType}] 需求数量为0，跳过执行`);
         Utils.addNotification(`[${materialType}] 需求数量为0，跳过执行`);
         return false;
