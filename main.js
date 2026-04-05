@@ -115,6 +115,8 @@ const Main = async () => {
             log.warn(`保存UID到配置文件失败: ${e.message}`);
         }
         
+        setGameMetrics(1920, 1080, 1);
+        
         // 天赋书刷取逻辑
         for (let i = 0; i < 1; i++) {
             const talentBookCandidates = [
@@ -791,7 +793,7 @@ async function performCharacterRecognition(materialType, recognitionType = "all"
 async function runLeyLineManagement() {
     try {
         log.info("===== 地脉花管理流程开始执行 =====");
-        
+        setGameMetrics(1920, 1080, 1)
         // 检查体力值
         const stamina = await Inventory.queryStaminaValue();
         const minStamina = 20;
