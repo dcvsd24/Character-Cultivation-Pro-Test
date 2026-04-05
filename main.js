@@ -87,7 +87,7 @@ const Main = async () => {
         
         // ========== 第一步：执行角色识别与材料计算流程 ==========
         log.info("📌 开始执行角色识别与材料计算流程...");
-       await Character.findCharacterAndGetLevel();
+        await Character.findCharacterAndGetLevel();
         
         // ============== 材料刷取逻辑开始 ==============
         
