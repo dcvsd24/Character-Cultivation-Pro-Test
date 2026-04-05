@@ -216,7 +216,7 @@ const Main = async () => {
                     let weaponRequireCounts = Utils.parseAndValidateCounts(weaponCountsStr, 4);
                     log.info(`武器材料${i + 1}方案解析成功: ${weaponRequireCounts.join(', ')}`);
                     
-                    const isCompleted = await TaskManager.isTaskCompleted("wepon", weaponName, weaponRequireCounts, currentCharacterName, currentUid);
+                    const isCompleted = await TaskManager.isTaskCompleted("weapon", weaponName, weaponRequireCounts, currentCharacterName, currentUid);
                     if (isCompleted) {
                         log.info(`武器材料${weaponName} 已刷取至目标数量，跳过执行`);
                         Utils.addNotification(`武器材料${weaponName} 已刷取至目标数量，跳过执行`);
