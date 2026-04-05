@@ -87,7 +87,12 @@ const Main = async () => {
         
         // ========== 第一步：执行角色识别与材料计算流程 ==========
         log.info("📌 开始执行角色识别与材料计算流程...");
-        await Character.findCharacterAndGetLevel();
+        const recognitionSuccess = await Character.findCharacterAndGetLevel();
+        if (!recognitionSuccess) {
+            log.error("❌ 角色识别失败，终止主流程");
+            notification.error("角色识别失败，请检查角色是否正确配置");
+            return;
+        }
         
         // ============== 材料刷取逻辑开始 ==============
         
