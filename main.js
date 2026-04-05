@@ -147,7 +147,8 @@ const Main = async () => {
                 log.info(`天赋书配置为空，跳过执行`);
                 continue;
             }
-            const talentBookName = Utils.fuzzyMatch(talentBookNameFromConfig, talentBookCandidates);
+            const talentBookResult = Utils.fuzzyMatch(talentBookNameFromConfig, talentBookCandidates);
+            const talentBookName = talentBookResult ? talentBookResult.match : null;
             const currentCharacterName = settings.Character ? settings.Character.trim() : "未知角色";
             if (talentBookName && talentBookName !== "无") {
                 try {
@@ -205,7 +206,8 @@ const Main = async () => {
                 log.info(`武器材料配置为空，跳过执行`);
                 continue;
             }
-            const weaponName = Utils.fuzzyMatch(weaponDomainNameFromConfig, weaponDomainCandidates);
+            const weaponResult = Utils.fuzzyMatch(weaponDomainNameFromConfig, weaponDomainCandidates);
+            const weaponName = weaponResult ? weaponResult.match : null;
             const currentCharacterName = settings.Character ? settings.Character.trim() : "未知角色";
             if (weaponName && weaponName !== "无") {
                 try {
@@ -282,7 +284,8 @@ const Main = async () => {
                 log.info(`首领材料配置为空，跳过执行`);
                 continue;
             }
-            const bossName = Utils.fuzzyMatch(bossMaterialNameFromConfig, bossMaterialCandidates);
+            const bossResult = Utils.fuzzyMatch(bossMaterialNameFromConfig, bossMaterialCandidates);
+            const bossName = bossResult ? bossResult.match : null;
             const currentCharacterName = settings.Character ? settings.Character.trim() : "未知角色";
             if (bossName && bossName !== "无") {
                 try {
