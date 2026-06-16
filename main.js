@@ -19,6 +19,7 @@ eval(file.readTextSync("lib/ui_navigator.js"));
 eval(file.readTextSync("lib/calculator.js"));
 eval(file.readTextSync("lib/image_recognition.js"));
 eval(file.readTextSync("lib/file_utils.js"));
+eval(file.readTextSync("lib/overlay.js"));
 
 log.info("所有模块加载完成");
 
@@ -45,6 +46,34 @@ function checkModulesLoaded() {
     return true;
 }
 
+// 根据用户输入的角色名称获取标准名称（从 combat_avatar.json）
+function getStandardCharacterName(inputName) {
+    if (!inputName) return null;
+    try {
+        const avatarData = JSON.parse(file.readTextSync("data/combat_avatar.json"));
+        const normalizedInput = inputName.toLowerCase().trim();
+        
+        for (const avatar of avatarData) {
+            // 检查标准名称
+            if (avatar.name && avatar.name.toLowerCase() === normalizedInput) {
+                return avatar.name;
+            }
+            // 检查别名数组
+            if (avatar.alias && Array.isArray(avatar.alias)) {
+                for (const alias of avatar.alias) {
+                    if (alias.toLowerCase() === normalizedInput) {
+                        return avatar.name;
+                    }
+                }
+            }
+        }
+        return null;
+    } catch (e) {
+        log.error(`读取 combat_avatar.json 失败: ${e.message}`);
+        return null;
+    }
+}
+
 // 主逻辑
 const Main = async () => {
     try {
@@ -54,8 +83,41 @@ const Main = async () => {
             log.error("模块加载失败，脚本终止");
             return;
         }
-        
+
         log.info("✅ 所有模块验证通过");
+
+        // 初始化 HTML 遮罩
+        let currentVersion = JSON.parse(file.readTextSync("manifest.json")).version;
+        Overlay.initOverlay(currentVersion);
+        
+        // 设置总阶段数并启动计时
+        Overlay.setTotalStages(12);
+        Overlay.startTimer();
+        
+        // 显示遮罩
+        await Overlay.showOverlay({
+            stage: '准备中',
+            status: '正在初始化...',
+            percentage: 0,
+            current: 0,
+            total: 10,
+            elapsedTime: '00分00秒'
+        });
+        
+        // 设置角色名称（从 combat_avatar.json 获取标准名称）
+        const inputCharacterName = settings.Character ? settings.Character.trim() : "";
+        if (inputCharacterName) {
+            const standardCharacterName = getStandardCharacterName(inputCharacterName);
+            if (standardCharacterName) {
+                Overlay.setCharacterName(standardCharacterName);
+                log.info(`✅ 当前培养角色: ${standardCharacterName}`);
+            } else {
+                log.warn(`未找到角色 "${inputCharacterName}" 的标准名称`);
+            }
+        }
+        
+        // 初始化快捷键
+        Overlay.initKeyHook();
         
         // 检查霸王条款
         if (!settings.unfairContractTerms) {
@@ -87,8 +149,9 @@ const Main = async () => {
         
         // ========== 第一步：执行角色识别与材料计算流程 ==========
         log.info("📌 开始执行角色识别与材料计算流程...");
+        Overlay.updateStage('角色识别与材料计算', '正在识别角色材料信息...', 10);
         const recognitionSuccess = await Character.findCharacterAndGetLevel();
-        if (!recognitionSuccess) {
+       if (!recognitionSuccess) {
             log.error("❌ 角色识别失败，终止主流程");
             notification.error("角色识别失败，请检查角色是否正确配置");
             return;
@@ -123,6 +186,7 @@ const Main = async () => {
         setGameMetrics(1920, 1080, 1);
         
         // 天赋书刷取逻辑
+        Overlay.updateStage('天赋书刷取', '准备刷取天赋书...', 20);
         for (let i = 0; i < 1; i++) {
             const talentBookCandidates = [
                 "自由",
@@ -154,6 +218,9 @@ const Main = async () => {
             }
             const talentBookResult = Utils.fuzzyMatch(talentBookNameFromConfig, talentBookCandidates);
             const talentBookName = talentBookResult ? talentBookResult.match : null;
+            if (talentBookName) {
+                Overlay.updateStage('天赋书刷取', '刷取材料：' + talentBookName, 20);
+            }
             const currentCharacterName = settings.Character ? settings.Character.trim() : "未知角色";
             if (talentBookName && talentBookName !== "无") {
                 try {
@@ -182,6 +249,7 @@ const Main = async () => {
         }
         
         // 武器材料刷取逻辑
+        Overlay.updateStage('武器材料刷取', '准备刷取武器材料...', 35);
         for (let i = 0; i < 1; i++) {
             const weaponDomainCandidates = [
                 "高塔孤王",
@@ -213,6 +281,9 @@ const Main = async () => {
             }
             const weaponResult = Utils.fuzzyMatch(weaponDomainNameFromConfig, weaponDomainCandidates);
             const weaponName = weaponResult ? weaponResult.match : null;
+            if (weaponName) {
+                Overlay.updateStage('武器材料刷取', '刷取材料：' + weaponName, 35);
+            }
             const currentCharacterName = settings.Character ? settings.Character.trim() : "未知角色";
             if (weaponName && weaponName !== "无") {
                 try {
@@ -241,6 +312,7 @@ const Main = async () => {
         }
         
         // 首领材料刷取逻辑
+        Overlay.updateStage('首领材料刷取', '准备挑战首领...', 50);
         for (let i = 0; i < 1; i++) {
             const bossMaterialCandidates = [
                 "蕴光月守宫",
@@ -291,6 +363,9 @@ const Main = async () => {
             }
             const bossResult = Utils.fuzzyMatch(bossMaterialNameFromConfig, bossMaterialCandidates);
             const bossName = bossResult ? bossResult.match : null;
+            if (bossName) {
+                Overlay.updateStage('首领材料刷取', '刷取材料：' + bossName, 50);
+            }
             const currentCharacterName = settings.Character ? settings.Character.trim() : "未知角色";
             if (bossName && bossName !== "无") {
                 try {
@@ -318,7 +393,8 @@ const Main = async () => {
         
         Utils.sendBufferedNotifications();
         log.info("✅ 所有材料刷取逻辑执行完成");
-        
+        Overlay.updateStage('材料刷取完成', '准备进入材料采集阶段...', 55);
+
         // 返回游戏主界面
         log.info("📌 正在校准并返回游戏主界面...");
         await genshin.returnMainUi();
@@ -326,6 +402,7 @@ const Main = async () => {
         
         // ============== 执行材料采集流程 ==========
         log.info("📌 开始执行材料采集流程...");
+        Overlay.updateStage('材料采集', '正在执行材料采集...', 60);
         await runMaterialCollection();
         // 返回游戏主界面
         log.info("📌 正在校准并返回游戏主界面...");
@@ -333,15 +410,31 @@ const Main = async () => {
         await sleep(1500);
         // ============== 最后一步：地脉花管理流程 ==========
         log.info("📌 开始执行地脉花管理流程...");
+        Overlay.updateStage('地脉花管理', '正在执行地脉花任务...', 85);
         await runLeyLineManagement();
          // 返回游戏主界面
         log.info("📌 正在校准并返回游戏主界面...");
         await genshin.returnMainUi();
         await sleep(1500);
         
+        // 完成所有任务
+        Overlay.updateStage('全部完成！', '执行结束', 100);
+        log.info("✅ 所有任务执行完成");
+        await sleep(3000);
+        
+        // 关闭遮罩和清理资源
+        Overlay.closeOverlay();
+        Overlay.disposeKeyHook();
+        
     } catch (globalError) {
         log.error(`❌ 整体流程执行失败: ${globalError.message}`);
         notification.send(`整体流程执行失败: ${globalError.message}`);
+        
+        // 确保在出错时也关闭遮罩
+        try {
+            Overlay.closeOverlay();
+            Overlay.disposeKeyHook();
+        } catch (e) {}
     }
 };
 
@@ -370,6 +463,9 @@ async function runMaterialCollection() {
     
     // 提取配置参数
     const localKeyword = config["LocalSpecialties"] || "";
+    if (localKeyword) {
+        Overlay.updateStage('地方特产采集', '采集中：' + localKeyword, 60);
+    }
     const allMagicKeywords = Collection.extractAllMagicKeywords(config);
     const allWeapons1Keywords = Collection.extractAllWeapons1Keywords(config);
     const allWeapons2Keywords = Collection.extractAllWeapons2Keywords(config);
@@ -671,7 +767,15 @@ async function executeLocalBatch(allScripts, isExcludeGrassGod, materialType, cu
         const totalCanGet = scriptsToExecute.reduce((sum, s) => sum + (s.count || Constants.DEFAULT_LOCAL_COUNT), 0);
         log.info(`🔢 [${materialType}] 本次计划执行${scriptsToExecute.length}个脚本，预计获取${totalCanGet}个特产`);
         
-        const result = await Collection.executeScripts(scriptsToExecute, 0, 0, currentUid, cooldown, cooldownRecord);
+        const result = await Collection.executeScripts(scriptsToExecute, 0, 0, currentUid, cooldown, cooldownRecord,
+            function(script, current, total) {
+                const keyword = Utils.readJson(Constants.CONFIG_PATH)["LocalSpecialties"] || "";
+                Overlay.updateStatus(
+                    '当前采集进度(' + current + '/' + total + ')',
+                    '地方特产- ' + keyword + ' 采集中：' + script.name
+                );
+            }
+        );
         
         const executedPaths = new Set(scriptsToExecute.slice(0, result.executedCount).map(s => s.path));
         remainingScripts = remainingScripts.filter(s => !executedPaths.has(s.path));
@@ -710,14 +814,16 @@ async function executeLocalBatch(allScripts, isExcludeGrassGod, materialType, cu
 async function executeMonsterBatch(allScripts, configKey, materialType, currentUid, cooldown, cooldownRecord, type) {
     let remainingScripts = [...allScripts];
     let isCompleted = false;
-    
+
     const startIndex = Collection.getStartIndex(remainingScripts, currentUid, cooldownRecord, type);
     remainingScripts = remainingScripts.slice(startIndex);
-    
+
     if (startIndex > 0) {
         log.info(`📌 [${materialType}] 断点续传，从第${startIndex + 1}个脚本开始执行`);
     }
-    
+
+    Overlay.updateStage(materialType, '准备收集...', 60);
+
     while (remainingScripts.length > 0) {
         const config = Utils.readJson(Constants.CONFIG_PATH);
         let currentAmount = Number(config[configKey]) || 0;
@@ -748,7 +854,14 @@ async function executeMonsterBatch(allScripts, configKey, materialType, currentU
             log.info(`🔢 [${materialType}] 材料数量>${Constants.THRESHOLD_HIGH}，执行${Constants.PATH_COUNT_HIGH}个路径（不触发角色识别）`);
         }
         
-        const result = await Collection.executeScripts(remainingScripts, 0, batchSize, currentUid, cooldown, cooldownRecord);
+        const result = await Collection.executeScripts(remainingScripts, 0, batchSize, currentUid, cooldown, cooldownRecord,
+            function(script, current, total) {
+                Overlay.updateStatus(
+                    '当前进度(' + current + '/' + total + ')',
+                    materialType + ' 收集中：' + script.name
+                );
+            }
+        );
         remainingScripts = result.remainingScripts;
         
         if (remainingScripts.length === 0) {
@@ -1111,6 +1224,7 @@ async function runAutoLeyLineOutcropTask(expRuns, moraRuns, stamina) {
                 const actualCount = Math.min(moraRuns, resinSupportedCount);
                 log.info(`当前树脂: ${resin}, 树脂支持次数: ${resinSupportedCount}, 实际执行次数: ${actualCount}`);
                 notification.send(`当前树脂: ${resin}, 树脂支持次数: ${resinSupportedCount}, 实际执行次数: ${actualCount}`);
+                Overlay.updateStage('正在刷取摩拉（' + actualCount + '轮）', 85);
                 
                 let taskParam = new AutoLeyLineOutcropParam();
                 taskParam.Count = actualCount;
@@ -1143,7 +1257,7 @@ async function runAutoLeyLineOutcropTask(expRuns, moraRuns, stamina) {
                 const actualCount = Math.min(expRuns, resinSupportedCount);
                 log.info(`当前树脂: ${currentStamina}, 树脂支持次数: ${resinSupportedCount}, 实际执行次数: ${actualCount}`);
                 notification.send(`当前树脂: ${currentStamina}, 树脂支持次数: ${resinSupportedCount}, 实际执行次数: ${actualCount}`);
-                
+                Overlay.updateStage('正在刷取经验书（' + actualCount + '轮）', 90);
                 let taskParam = new AutoLeyLineOutcropParam();
                 taskParam.Count = actualCount;
                 taskParam.Country = settings.adventurePath || "蒙德";
@@ -1184,9 +1298,28 @@ async function runAutoLeyLineOutcropTask(expRuns, moraRuns, stamina) {
     }
     __genshinMaterialScriptExecuting = true;
     
+    // 定义清理函数，确保资源释放
+    function cleanupResources() {
+        try {
+            Overlay.closeOverlay();
+        } catch (e) {}
+        try {
+            Overlay.disposeKeyHook();
+        } catch (e) {}
+    }
+    
     try {
         await Main();
+    } catch (err) {
+        // 捕获任何错误（包括手动取消任务）
+        if (err.message && (err.message.includes("A task was canceled") || err.message.includes("取消自动任务"))) {
+            log.info("[脚本终止] 检测到手动取消任务，正在清理资源...");
+        } else {
+            log.error(`[脚本异常] 执行错误：${err.message}`);
+        }
     } finally {
+        // 无论正常结束还是异常退出，都确保清理资源
+        cleanupResources();
         __genshinMaterialScriptExecuting = false;
     }
 })();
