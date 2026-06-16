@@ -6,6 +6,8 @@ script_cooldown_record.json
 completed_tasks.json
 config.json
 
+# WebView2 运行数据（整个文件夹）
+WebView2Data/
 
 # 本地资源文件
 bgi脚本开发文档/
