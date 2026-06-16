@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>任务进度</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: transparent;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            overflow: hidden;
+            user-select: none;
+        }
+
+       .panel {
+            position: fixed;
+            bottom: 250px;
+            right: 440px;
+            width: 500px;
+            background: linear-gradient(135deg, rgba(20, 25, 40, 0.95), rgba(30, 35, 55, 0.95));
+            border-radius: 12px;
+            padding: 24px;
+            color: #fff;
+            box-shadow:
+                0 8px 32px rgba(0, 0, 0, 0.4),
+                0 0 0 1px rgba(255, 255, 255, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            transform-origin: bottom right;
+        }
+
+        /* 画框线条装饰 */
+        .panel::before {
+            content: '';
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            right: 8px;
+            bottom: 8px;
+            border: 2px solid rgba(118, 15, 177, 0.879);
+            border-radius: 8px;
+            pointer-events: none;
+        }
+
+        .panel::after {
+            content: '';
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            right: 12px;
+            bottom: 12px;
+            border: 1px solid rgba(136, 61, 233, 0.496);
+            border-radius: 6px;
+            pointer-events: none;
+        }
+
+        /* 四角装饰 */
+        .corner-decor {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            pointer-events: none;
+        }
+
+        .corner-decor::before,
+        .corner-decor::after {
+            content: '';
+            position: absolute;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+        }
+
+        .corner-decor.top-left {
+            top: 4px;
+            left: 4px;
+        }
+        .corner-decor.top-left::before {
+            top: 0;
+            left: 0;
+            width: 16px;
+            height: 2px;
+        }
+        .corner-decor.top-left::after {
+            top: 0;
+            left: 0;
+            width: 2px;
+            height: 16px;
+        }
+
+        .corner-decor.top-right {
+            top: 4px;
+            right: 4px;
+        }
+        .corner-decor.top-right::before {
+            top: 0;
+            right: 0;
+            width: 16px;
+            height: 2px;
+        }
+        .corner-decor.top-right::after {
+            top: 0;
+            right: 0;
+            width: 2px;
+            height: 16px;
+        }
+
+        .corner-decor.bottom-left {
+            bottom: 4px;
+            left: 4px;
+        }
+        .corner-decor.bottom-left::before {
+            bottom: 0;
+            left: 0;
+            width: 16px;
+            height: 2px;
+        }
+        .corner-decor.bottom-left::after {
+            bottom: 0;
+            left: 0;
+            width: 2px;
+            height: 16px;
+        }
+
+        .corner-decor.bottom-right {
+            bottom: 4px;
+            right: 4px;
+        }
+        .corner-decor.bottom-right::before {
+            bottom: 0;
+            right: 0;
+            width: 16px;
+            height: 2px;
+        }
+        .corner-decor.bottom-right::after {
+            bottom: 0;
+            right: 0;
+            width: 2px;
+            height: 16px;
+        }
+
+        .panel.minimized {
+            width: 120px;
+            height: 50px;
+            padding: 12px 16px;
+            cursor: pointer;
+            overflow: hidden;
+        }
+
+        .panel.minimized .content {
+            display: none;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #e8eaed;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .title-icon {
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .character-name {
+            font-size: 16px;
+            color: #f472b6;
+            font-weight: 600;
+            margin-left: 8px;
+            padding: 2px 8px;
+            background: rgba(244, 114, 182, 0.15);
+            border-radius: 4px;
+        }
+
+        .elapsed-time {
+            font-size: 14px;
+            color: #9ca3af;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .stage-info {
+            margin-bottom: 16px;
+        }
+
+        .stage-name {
+            font-size: 18px;
+            color: #60a5fa;
+            margin-bottom: 6px;
+            font-weight: 600;
+            word-break: break-all;
+        }
+
+        .status-text {
+            font-size: 17px;
+            color: #d1d5db;
+        }
+
+        .extra-info {
+            font-size: 16px;
+            color: #9ca3af;
+            margin-top: 4px;
+        }
+
+        .progress-section {
+            margin-bottom: 14px;
+            padding-top: 64px;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .progress-label {
+            font-size: 14px;
+            color: #9ca3af;
+        }
+
+        .progress-percentage {
+            font-size: 15px;
+            font-weight: 600;
+            color: #60a5fa;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: visible;
+            position: relative;
+        }
+
+        /* 像素小人动画 - 在进度条上方，跟随进度移动 */
+        .linnea-sprite {
+            position: absolute;
+            bottom: 12px;
+            left: 0;
+            width: 64px;
+            height: 64px;
+            image-rendering: pixelated;
+            pointer-events: none;
+            transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateX(-50%);
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            border-radius: 4px;
+            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.3),
+                transparent
+            );
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .stage-counter {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #9ca3af;
+        }
+
+        .counter-current {
+            color: #60a5fa;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .minimized-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #e8eaed;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Demo 模式样式 */
+        .demo-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #f59e0b;
+            color: #000;
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="panel" id="panel">
+        <!-- 画框四角装饰 -->
+        <div class="corner-decor top-left"></div>
+        <div class="corner-decor top-right"></div>
+        <div class="corner-decor bottom-left"></div>
+        <div class="corner-decor bottom-right"></div>
+        <div class="demo-badge" id="demoBadge" style="display: none;">DEMO</div>
+        <div class="header">
+            <div class="title">
+                <div class="title-icon">⚡</div>
+                角色养成一条龙
+                <span class="character-name" id="characterName" style="display: none;"></span>
+            </div>
+            <div class="elapsed-time" id="elapsedTime">00分00秒</div>
+        </div>
+        
+        <div class="content">
+            <div class="stage-info">
+                <div class="stage-name" id="stageName">准备中...</div>
+                <div class="status-text" id="statusText">正在初始化</div>
+                <div class="extra-info" id="extraInfo"></div>
+            </div>
+
+            <div class="progress-section">
+                <div class="progress-header">
+                    <span class="progress-label">总进度</span>
+                    <span class="progress-percentage" id="percentageText">0%</span>
+                </div>
+                <div class="progress-bar-container">
+                    <!-- 像素小人动画 - 跟随进度移动 -->
+                    <img class="linnea-sprite" id="linneaSprite" src="../linnea-running-right.gif" alt="">
+                    <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <div class="stage-counter">
+                <span>阶段：</span>
+                <span class="counter-current" id="currentStage">0</span>
+                <span> / </span>
+                <span id="totalStages">0</span>
+            </div>
+        </div>
+
+        <div class="minimized-title" id="minimizedTitle" style="display: none;">执行中...</div>
+    </div>
+
+    <script>
+        // 状态
+        let isMinimized = false;
+
+        // DOM 元素
+        const panel = document.getElementById('panel');
+        const stageNameEl = document.getElementById('stageName');
+        const statusTextEl = document.getElementById('statusText');
+        const extraInfoEl = document.getElementById('extraInfo');
+        const percentageTextEl = document.getElementById('percentageText');
+        const progressBarEl = document.getElementById('progressBar');
+        const currentStageEl = document.getElementById('currentStage');
+        const totalStagesEl = document.getElementById('totalStages');
+        const elapsedTimeEl = document.getElementById('elapsedTime');
+        const minimizedTitleEl = document.getElementById('minimizedTitle');
+        const demoBadge = document.getElementById('demoBadge');
+        const characterNameEl = document.getElementById('characterName');
+        const linneaSpriteEl = document.getElementById('linneaSprite');
+
+        // DPI 补偿常量：BetterGI 已在服务端处理 DPI 缩放，此处不再需要补偿
+        // 注意：C# 端 UpdatePosition 已将物理像素转换为逻辑像素
+        const BASE_SCALE = 1;
+        // 分辨率适配基准值（针对 1920x1080 分辨率设计）
+        const BASE_WIDTH = 1920;
+
+        // 本地计时器：每秒刷新已用时间
+        let timerStart = null;
+        let timerInterval = null;
+
+        function startLocalTimer() {
+            if (timerInterval) return;
+            timerStart = Date.now();
+            timerInterval = setInterval(function() {
+                if (timerStart) {
+                    elapsedTimeEl.textContent = formatTime(Math.floor((Date.now() - timerStart) / 1000));
+                }
+            }, 1000);
+        }
+
+        function syncTimerFromRemote(remoteElapsedText) {
+            // 收到远程时间时，校准本地计时器起点
+            // remoteElapsedText 格式: "MM分SS秒"
+            if (!remoteElapsedText || typeof remoteElapsedText !== 'string') return;
+            const parts = remoteElapsedText.match(/(\d+)分(\d+)秒/);
+            if (!parts) return;
+            const mins = parseInt(parts[1], 10);
+            const secs = parseInt(parts[2], 10);
+            const totalSecs = mins * 60 + secs;
+            timerStart = Date.now() - totalSecs * 1000;
+            if (!timerInterval) {
+                startLocalTimer();
+            }
+        }
+
+        // 切换最小化
+        function toggleMinimized() {
+            isMinimized = !isMinimized;
+            panel.classList.toggle('minimized', isMinimized);
+            
+            if (isMinimized) {
+                minimizedTitleEl.style.display = 'block';
+                minimizedTitleEl.textContent = stageNameEl.textContent || '执行中...';
+                linneaSpriteEl.style.display = 'none';
+            } else {
+                minimizedTitleEl.style.display = 'none';
+                linneaSpriteEl.style.display = 'block';
+            }
+        }
+
+        // 更新进度
+        function updateProgress(data) {
+            if (data.stage !== undefined) {
+                stageNameEl.textContent = data.stage;
+                if (isMinimized) {
+                    minimizedTitleEl.textContent = data.stage;
+                }
+            }
+            if (data.status !== undefined) {
+                statusTextEl.textContent = data.status;
+            }
+            if (data.extraInfo !== undefined) {
+                extraInfoEl.textContent = data.extraInfo;
+                extraInfoEl.style.display = data.extraInfo ? 'block' : 'none';
+            }
+            if (data.percentage !== undefined) {
+                const pct = Math.min(100, Math.max(0, Math.round(data.percentage)));
+                percentageTextEl.textContent = pct + '%';
+                progressBarEl.style.width = pct + '%';
+                // 更新图片位置，跟随进度从左往右移动
+                linneaSpriteEl.style.left = pct + '%';
+            }
+            if (data.current !== undefined) {
+                currentStageEl.textContent = data.current;
+            }
+            if (data.total !== undefined) {
+                totalStagesEl.textContent = data.total;
+            }
+            if (data.elapsedTime !== undefined) {
+                syncTimerFromRemote(data.elapsedTime);
+            }
+        }
+
+        // 消息处理
+        function handleMessage(msg) {
+            if (msg.url === '/progress') {
+                // 兼容处理：msg.data 可能是 JSON 字符串或已解析的对象
+                let data = msg.data;
+                if (typeof data === 'string') {
+                    try { data = JSON.parse(data); } catch (e) { return; }
+                }
+                if (!data || typeof data !== 'object') return;
+                updateProgress(data);
+            } else if (msg.url === '/toggle') {
+                toggleMinimized();
+            } else if (msg.url === '/character') {
+                // 处理角色名称消息
+                let data = msg.data;
+                if (typeof data === 'string') {
+                    try { data = JSON.parse(data); } catch (e) { return; }
+                }
+                if (data && data.characterName) {
+                    characterNameEl.textContent = '当前培养角色：' + data.characterName;
+                    characterNameEl.style.display = 'inline';
+                }
+            }
+        }
+
+        // 分辨率宽度适配：根据当前窗口宽度等比缩放值
+        // 用于动画位移等需要与分辨率相关的值
+        function calculateResponsiveOffset(baseOffset) {
+            const w = window.innerWidth;
+            return Math.round(baseOffset * w / BASE_WIDTH);
+        }
+
+        // 面板尺寸适配：BetterGI 已在服务端处理 DPI 缩放
+        // 此处仅做分辨率适配和边界检测，不再做 DPI 补偿
+        function applyDpiScale() {
+            // 始终设置 transform-origin 确保从右下角缩放
+            panel.style.transformOrigin = 'bottom right';
+
+            // BetterGI 已将物理像素转换为逻辑像素，无需再做 DPI 补偿
+            // 仅做分辨率适配和边界检测
+            let scale = BASE_SCALE;
+
+            // 边界检测：确保面板不超出窗口
+            requestAnimationFrame(function() {
+                const panelWidth = panel.offsetWidth * scale;
+                const windowWidth = window.innerWidth;
+                const margin = 16; // 留出边距
+
+                if (panelWidth + margin > windowWidth) {
+                    // 如果超出边界，使用更小的缩放比例
+                    scale = (windowWidth - margin) / panel.offsetWidth;
+                }
+
+                panel.style.transform = 'scale(' + scale + ')';
+            });
+        }
+
+        // 初始化
+        function init() {
+            // DPI 自动补偿：检测系统缩放比例并调整面板大小
+            applyDpiScale();
+
+            // 检查是否在 BetterGI 遮罩环境中
+            if (window.htmlMask) {
+                // 设置消息回调
+                window.htmlMask.onMessage = handleMessage;
+
+                // 通知脚本就绪
+                try {
+                    window.htmlMask.request('/ready', '{}');
+                } catch (e) {
+                    stageNameEl.textContent = 'ready 请求异常: ' + e.message;
+                    statusTextEl.textContent = String(e);
+                }
+            } else {
+                // Demo 模式：模拟进度更新用于开发调试
+                demoBadge.style.display = 'block';
+                startDemo();
+            }
+
+            // 点击最小化面板时恢复
+            panel.addEventListener('click', function() {
+                if (isMinimized) {
+                    toggleMinimized();
+                }
+            });
+        }
+
+        // Demo 模式
+        async function startDemo() {
+            // 从 config.json 加载角色材料配置
+            let talentDomainName = '自由';
+            let weaponDomainName = '高塔孤王';
+            let bossMaterialName = '爆炎树';
+            let localSpecialties = '琉璃袋';
+            try {
+                const configRes = await fetch('../data/run_data/config.json');
+                const configData = await configRes.json();
+                // config.json 是数组格式，遍历查找对应字段
+                configData.forEach(function(item) {
+                    if (item.talentDomainName !== undefined) talentDomainName = item.talentDomainName || '自由';
+                    if (item.weaponDomainName !== undefined && item.weaponDomainName) weaponDomainName = item.weaponDomainName;
+                    if (item.bossMaterialName !== undefined) bossMaterialName = item.bossMaterialName || '爆炎树';
+                    if (item.LocalSpecialties !== undefined && item.LocalSpecialties) localSpecialties = item.LocalSpecialties;
+                });
+            } catch (e) {
+                console.warn('加载 config.json 失败，使用默认值:', e);
+            }
+
+            const stages = [
+                { stage: '角色识别与材料计算', status: '识别中...', percentage: 5 },
+                { stage: '天赋书刷取', status: '刷取材料：' + talentDomainName, percentage: 15 },
+                { stage: '武器材料刷取', status: '刷取材料：' + weaponDomainName, percentage: 30 },
+                { stage: '首领材料刷取', status: '刷取材料：' + bossMaterialName, percentage: 45 },
+                { stage: '地方特产采集', status: '采集材料：' + localSpecialties, percentage: 60 },
+                { stage: '敌人与魔物战斗', status: '刷取材料中', percentage: 75 },
+                { stage: '武器材料', status: '刷取材料', percentage: 85 },
+                { stage: '地脉花管理', status: '地脉花结束', percentage: 95 },
+                { stage: '全部完成！', status: '执行结束', percentage: 100 }
+            ];
+
+            let i = 0;
+            totalStagesEl.textContent = stages.length;
+            
+            setInterval(function() {
+                if (i < stages.length) {
+                    currentStageEl.textContent = i + 1;
+                    updateProgress({
+                        ...stages[i],
+                        current: i + 1,
+                        total: stages.length,
+                        elapsedTime: formatTime(i * 3)
+                    });
+                    i++;
+                }
+            }, 3000);
+
+            // 模拟时间流逝
+            let seconds = 0;
+            setInterval(function() {
+                seconds++;
+                elapsedTimeEl.textContent = formatTime(seconds);
+            }, 1000);
+        }
+
+        function formatTime(totalSeconds) {
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            return `${String(minutes).padStart(2, '0')}分${String(seconds).padStart(2, '0')}秒`;
+        }
+
+        // 启动（带全局错误捕获）
+        try {
+            init();
+        } catch (e) {
+            stageNameEl.textContent = '初始化异常: ' + e.message;
+            statusTextEl.textContent = String(e.stack || e).substring(0, 200);
+        }
+
+        // 监听窗口大小变化
+        window.addEventListener('resize', function() {
+            applyDpiScale();
+        });
+    </script>
+</body>
+</html>
