@@ -107,5 +107,23 @@
       "挪德卡莱"
     ],
     "default": "蒙德"
+  },
+  {
+    "name": "enableUidMask",
+    "type": "checkbox",
+    "label": "【启用UID遮挡】在左上角显示UID遮挡图片",
+    "default": false
+  },
+  {
+    "name": "uidMaskPositionX",
+    "type": "input-text",
+    "label": "UID遮挡图片X坐标位置（距离左边的像素，默认0）",
+    "default": "0"
+  },
+  {
+    "name": "uidMaskPositionY",
+    "type": "input-text",
+    "label": "UID遮挡图片Y坐标位置（距离上边的像素，默认0）",
+    "default": "0"
   }
 ]
