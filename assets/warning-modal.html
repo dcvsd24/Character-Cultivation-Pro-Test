@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>提示</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: transparent;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            overflow: hidden;
+            user-select: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-box {
+            width: 420px;
+            background: linear-gradient(135deg, rgba(20, 25, 40, 0.95), rgba(30, 35, 55, 0.95));
+            border-radius: 12px;
+            padding: 32px;
+            color: #fff;
+            box-shadow:
+                0 8px 32px rgba(0, 0, 0, 0.4),
+                0 0 0 1px rgba(255, 255, 255, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            text-align: center;
+            transform: translate(-80px, -50px);
+        }
+
+        /* 画框线条装饰 */
+        .modal-box::before {
+            content: '';
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            right: 8px;
+            bottom: 8px;
+            border: 2px solid rgba(118, 15, 177, 0.879);
+            border-radius: 8px;
+            pointer-events: none;
+        }
+
+        .modal-box::after {
+            content: '';
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            right: 12px;
+            bottom: 12px;
+            border: 1px solid rgba(136, 61, 233, 0.496);
+            border-radius: 6px;
+            pointer-events: none;
+        }
+
+        .warning-icon {
+            font-size: 48px;
+            color: #f59e0b;
+            margin-bottom: 16px;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #c79ee0;
+            margin-bottom: 16px;
+        }
+
+        .modal-message {
+            font-size: 16px;
+            color: #e0e0e0;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        .close-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            border: none;
+            padding: 12px 32px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .close-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+        }
+
+        .close-btn:active {
+            transform: translateY(0);
+        }
+
+        .countdown-text {
+            font-size: 14px;
+            color: #f59e0b;
+            margin-top: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="modal-overlay">
+        <div class="modal-box">
+            <div class="warning-icon">⚠️</div>
+            <div class="modal-title">未签署霸王条款</div>
+            <div class="modal-message">请先右键点击脚本名称打开脚本所在目录阅读README.md文档，然后修改脚本自定义配置。</div>
+            <button class="close-btn" id="closeBtn">关闭</button>
+            <div class="countdown-text" id="countdownText">15秒后自动关闭</div>
+        </div>
+    </div>
+
+    <script>
+        let countdown = 15;
+        let countdownInterval = null;
+        let isClosed = false;
+
+        // 更新倒计时显示
+        function updateCountdown() {
+            countdown--;
+            document.getElementById('countdownText').textContent = countdown + '秒后自动关闭';
+            if (countdown <= 0) {
+                closeWindow();
+            }
+        }
+
+        // 关闭窗口
+        function closeWindow() {
+            if (isClosed) return;
+            isClosed = true;
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+            // 通知 JS 端关闭窗口
+            if (window.htmlMask) {
+                window.htmlMask.request('/close', '{}');
+            }
+        }
+
+        // 关闭按钮点击事件
+        document.getElementById('closeBtn').addEventListener('click', closeWindow);
+
+        // 初始化
+        function init() {
+            // 启动倒计时
+            countdownInterval = setInterval(updateCountdown, 1000);
+
+            if (window.htmlMask) {
+                // 设置消息回调
+                window.htmlMask.onMessage = function(msg) {
+                    // 可以接收来自 JS 的消息
+                };
+                // 通知脚本就绪
+                try {
+                    window.htmlMask.request('/ready', '{}');
+                } catch (e) {
+                    console.error('ready 请求异常:', e);
+                }
+            }
+        }
+
+        // 启动
+        try {
+            init();
+        } catch (e) {
+            console.error('初始化异常:', e);
+        }
+    </script>
+</body>
+</html>
