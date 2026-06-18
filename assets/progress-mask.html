@@ -168,7 +168,7 @@
         .title {
             font-size: 18px;
             font-weight: 600;
-            color: #e8eaed;
+            color: #c79ee0;
             display: flex;
             align-items: center;
             gap: 8px;
@@ -197,30 +197,61 @@
 
         .elapsed-time {
             font-size: 14px;
-            color: #9ca3af;
+            color: #c79ee0;
             font-variant-numeric: tabular-nums;
+        }
+
+        /* 摇一摇gif图片 */
+        .shake-gif {
+            width: 70px;
+            height: 70px;
+            image-rendering: pixelated;
         }
 
         .stage-info {
             margin-bottom: 16px;
         }
 
+        /* 阶段名称行：包含阶段名称和gif图片 */
+        .stage-name-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+
         .stage-name {
             font-size: 18px;
-            color: #60a5fa;
-            margin-bottom: 6px;
+            color: #b56ae3;
             font-weight: 600;
             word-break: break-all;
         }
 
         .status-text {
-            font-size: 17px;
-            color: #d1d5db;
+            font-size: 16px;
+            color: #c79ee0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .loading-spinner {
+            width: 16px;
+            height: 16px;
+            border: 3px solid rgba(199, 158, 224, 0.3);
+            border-top-color: #c79ee0;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         .extra-info {
             font-size: 16px;
-            color: #9ca3af;
+            color: #c79ee0;
             margin-top: 4px;
         }
 
@@ -235,16 +266,16 @@
             align-items: center;
             margin-bottom: 8px;
         }
-
+/* 总进度 */
         .progress-label {
             font-size: 14px;
-            color: #9ca3af;
+            color: #c79ee0;
         }
-
+ /* 百分比，数字，颜色 */
         .progress-percentage {
             font-size: 15px;
             font-weight: 600;
-            color: #60a5fa;
+            color: #c79ee0;
             font-variant-numeric: tabular-nums;
         }
 
@@ -305,19 +336,46 @@
             align-items: center;
             gap: 8px;
             font-size: 14px;
-            color: #9ca3af;
+            color: #c79ee0;
         }
 
         .counter-current {
-            color: #60a5fa;
+            color: #d80b0b;
             font-weight: 600;
             font-variant-numeric: tabular-nums;
+        }
+
+        /* N键提示文字 - 时隐时现效果 */
+        .n-key-hint {
+            margin-left: 12px;
+            font-size: 12px;
+            color: #fbbf24;
+            opacity: 1;
+            animation: hintFadeInOut 2s ease-in-out infinite;
+        }
+
+        /* 可莉跑酷gif图片 - 右下角画框效果 */
+        .klee-run-gif {
+            position: absolute;
+            bottom: 12px;
+            right: 12px;
+            width: 158px;
+            height: 42px;
+            image-rendering: pixelated;
+            border: 3px solid rgba(118, 15, 177, 0.879);
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        @keyframes hintFadeInOut {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
         }
 
         .minimized-title {
             font-size: 15px;
             font-weight: 600;
-            color: #e8eaed;
+            color: #c79ee0;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -356,8 +414,14 @@
         
         <div class="content">
             <div class="stage-info">
-                <div class="stage-name" id="stageName">准备中...</div>
-                <div class="status-text" id="statusText">正在初始化</div>
+                <div class="stage-name-row">
+                    <div class="stage-name" id="stageName">准备中...</div>
+                    <img class="shake-gif" src="RecognitionObject/摇一摇.gif" alt="">
+                </div>
+                <div class="status-text" id="statusText">
+                    <span id="statusTextContent">正在初始化</span>
+                    <div class="loading-spinner" id="loadingSpinner"></div>
+                </div>
                 <div class="extra-info" id="extraInfo"></div>
             </div>
 
@@ -368,7 +432,7 @@
                 </div>
                 <div class="progress-bar-container">
                     <!-- 像素小人动画 - 跟随进度移动 -->
-                    <img class="linnea-sprite" id="linneaSprite" src="../linnea-running-right.gif" alt="">
+                    <img class="linnea-sprite" id="linneaSprite" src="RecognitionObject/linnea-running-right.gif" alt="">
                     <div class="progress-bar" id="progressBar" style="width: 0%"></div>
                 </div>
             </div>
@@ -378,6 +442,8 @@
                 <span class="counter-current" id="currentStage">0</span>
                 <span> / </span>
                 <span id="totalStages">0</span>
+                <span class="n-key-hint">点按N隐藏面板</span>
+                <img class="klee-run-gif" src="RecognitionObject/可莉跑酷.gif" alt="">
             </div>
         </div>
 
@@ -391,7 +457,7 @@
         // DOM 元素
         const panel = document.getElementById('panel');
         const stageNameEl = document.getElementById('stageName');
-        const statusTextEl = document.getElementById('statusText');
+        const statusTextContentEl = document.getElementById('statusTextContent');
         const extraInfoEl = document.getElementById('extraInfo');
         const percentageTextEl = document.getElementById('percentageText');
         const progressBarEl = document.getElementById('progressBar');
@@ -462,7 +528,7 @@
                 }
             }
             if (data.status !== undefined) {
-                statusTextEl.textContent = data.status;
+                statusTextContentEl.textContent = data.status;
             }
             if (data.extraInfo !== undefined) {
                 extraInfoEl.textContent = data.extraInfo;
@@ -597,12 +663,12 @@
 
             const stages = [
                 { stage: '角色识别与材料计算', status: '识别中...', percentage: 5 },
-                { stage: '天赋书刷取', status: '刷取材料：' + talentDomainName, percentage: 15 },
-                { stage: '武器材料刷取', status: '刷取材料：' + weaponDomainName, percentage: 30 },
-                { stage: '首领材料刷取', status: '刷取材料：' + bossMaterialName, percentage: 45 },
-                { stage: '地方特产采集', status: '采集材料：' + localSpecialties, percentage: 60 },
+                { stage: '天赋书刷取', status: '刷取材料：' + talentDomainName +  ' ❃准备获取中...', percentage: 15 },
+                { stage: '武器秘境材料刷取', status: '刷取材料：' + weaponDomainName +' ❃准备获取中...', percentage: 30 },
+                { stage: '首领材料刷取', status: '刷取材料：' + bossMaterialName +  ' ❃准备获取中...', percentage: 45 },
+                { stage: '地方特产采集', status: '采集材料：' + localSpecialties +  ' ❃准备获取中...', percentage: 60 },
                 { stage: '敌人与魔物战斗', status: '刷取材料中', percentage: 75 },
-                { stage: '武器材料', status: '刷取材料', percentage: 85 },
+                { stage: '武器魔物材料', status: '刷取材料中', percentage: 85 },
                 { stage: '地脉花管理', status: '地脉花结束', percentage: 95 },
                 { stage: '全部完成！', status: '执行结束', percentage: 100 }
             ];
