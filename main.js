@@ -100,7 +100,7 @@ const Main = async () => {
             status: '正在初始化...',
             percentage: 0,
             current: 0,
-            total: 10,
+            total: 12,
             elapsedTime: '00分00秒'
         });
         
@@ -121,10 +121,33 @@ const Main = async () => {
         
         // 检查霸王条款
         if (!settings.unfairContractTerms) {
-           log.warn("{0}", Constants.ERROR_NO_README_MD);
-            await sleep(10000)
-            throw new Error('未签署霸王条款，无法使用');
+            log.warn("{0}", Constants.ERROR_NO_README_MD);
             
+            // 显示遮罩弹窗提示
+            const warningWinId = htmlMask.show("assets/warning-modal.html", "warning-modal");
+            htmlMask.setClickThrough(warningWinId, false); // 使窗口可交互
+            
+            // 等待用户关闭弹窗（最多15秒）
+            const startTime = Date.now();
+            const timeoutMs = 15000;
+            while (htmlMask.exists(warningWinId)) {
+                // 检查是否超时
+                if (Date.now() - startTime >= timeoutMs) {
+                    htmlMask.close(warningWinId);
+                    break;
+                }
+                
+                const msg = await htmlMask.receive(warningWinId, 1000);
+                if (msg) {
+                    const parsed = JSON.parse(msg);
+                    if (parsed.url === '/close') {
+                        htmlMask.close(warningWinId);
+                        break;
+                    }
+                }
+            }
+            
+            throw new Error('未签署霸王条款，无法使用');
         }
         
         // 加载已完成任务记录
@@ -219,7 +242,7 @@ const Main = async () => {
             const talentBookResult = Utils.fuzzyMatch(talentBookNameFromConfig, talentBookCandidates);
             const talentBookName = talentBookResult ? talentBookResult.match : null;
             if (talentBookName) {
-                Overlay.updateStage('天赋书刷取', '刷取材料：' + talentBookName, 20);
+                Overlay.updateStage('天赋书刷取', '刷取材料：' + talentBookName+  ' ❃获取中...', 25);
             }
             const currentCharacterName = settings.Character ? settings.Character.trim() : "未知角色";
             if (talentBookName && talentBookName !== "无") {
@@ -282,7 +305,7 @@ const Main = async () => {
             const weaponResult = Utils.fuzzyMatch(weaponDomainNameFromConfig, weaponDomainCandidates);
             const weaponName = weaponResult ? weaponResult.match : null;
             if (weaponName) {
-                Overlay.updateStage('武器材料刷取', '刷取材料：' + weaponName, 35);
+                Overlay.updateStage('武器材料刷取', '刷取材料：' + weaponName+  '  ❃获取中...', 40);
             }
             const currentCharacterName = settings.Character ? settings.Character.trim() : "未知角色";
             if (weaponName && weaponName !== "无") {
@@ -364,7 +387,7 @@ const Main = async () => {
             const bossResult = Utils.fuzzyMatch(bossMaterialNameFromConfig, bossMaterialCandidates);
             const bossName = bossResult ? bossResult.match : null;
             if (bossName) {
-                Overlay.updateStage('首领材料刷取', '刷取材料：' + bossName, 50);
+                Overlay.updateStage('首领材料刷取', '刷取材料：' + bossName + ' ❃获取中...', 50);
             }
             const currentCharacterName = settings.Character ? settings.Character.trim() : "未知角色";
             if (bossName && bossName !== "无") {
@@ -402,7 +425,7 @@ const Main = async () => {
         
         // ============== 执行材料采集流程 ==========
         log.info("📌 开始执行材料采集流程...");
-        Overlay.updateStage('材料采集', '正在执行材料采集...', 60);
+        Overlay.updateStage('材料采集', '准备执行材料采集...', 60);
         await runMaterialCollection();
         // 返回游戏主界面
         log.info("📌 正在校准并返回游戏主界面...");
@@ -410,7 +433,7 @@ const Main = async () => {
         await sleep(1500);
         // ============== 最后一步：地脉花管理流程 ==========
         log.info("📌 开始执行地脉花管理流程...");
-        Overlay.updateStage('地脉花管理', '正在执行地脉花任务...', 85);
+        Overlay.updateStage('地脉花管理', '准备执行地脉花任务...', 85);
         await runLeyLineManagement();
          // 返回游戏主界面
         log.info("📌 正在校准并返回游戏主界面...");
@@ -464,7 +487,7 @@ async function runMaterialCollection() {
     // 提取配置参数
     const localKeyword = config["LocalSpecialties"] || "";
     if (localKeyword) {
-        Overlay.updateStage('地方特产采集', '采集中：' + localKeyword, 60);
+        Overlay.updateStage('地方特产采集', '采集材料：' + localKeyword + ' ❃准备采集中...', 60);
     }
     const allMagicKeywords = Collection.extractAllMagicKeywords(config);
     const allWeapons1Keywords = Collection.extractAllWeapons1Keywords(config);
@@ -771,8 +794,8 @@ async function executeLocalBatch(allScripts, isExcludeGrassGod, materialType, cu
             function(script, current, total) {
                 const keyword = Utils.readJson(Constants.CONFIG_PATH)["LocalSpecialties"] || "";
                 Overlay.updateStatus(
-                    '当前采集进度(' + current + '/' + total + ')',
-                    '地方特产- ' + keyword + ' 采集中：' + script.name
+                    '采集进度[' + current + '/' + total + ']  预计获取' + totalCanGet + '个特产  采集中...',
+                    '采集材料： ' + keyword + '   ▶   ' + script.name
                 );
             }
         );
@@ -857,8 +880,8 @@ async function executeMonsterBatch(allScripts, configKey, materialType, currentU
         const result = await Collection.executeScripts(remainingScripts, 0, batchSize, currentUid, cooldown, cooldownRecord,
             function(script, current, total) {
                 Overlay.updateStatus(
-                    '当前进度(' + current + '/' + total + ')',
-                    materialType + ' 收集中：' + script.name
+                    '当前进度[' + current + '/' + total + '] 当前材料需求量' + currentAmount + '个  收集中...',
+                    materialType + '   ▶   ' + script.name
                 );
             }
         );
@@ -1224,7 +1247,7 @@ async function runAutoLeyLineOutcropTask(expRuns, moraRuns, stamina) {
                 const actualCount = Math.min(moraRuns, resinSupportedCount);
                 log.info(`当前树脂: ${resin}, 树脂支持次数: ${resinSupportedCount}, 实际执行次数: ${actualCount}`);
                 notification.send(`当前树脂: ${resin}, 树脂支持次数: ${resinSupportedCount}, 实际执行次数: ${actualCount}`);
-                Overlay.updateStage('正在刷取摩拉（' + actualCount + '轮）', 85);
+                Overlay.updateStage('共进行（' + actualCount + '轮）正在刷取摩拉', 85);
                 
                 let taskParam = new AutoLeyLineOutcropParam();
                 taskParam.Count = actualCount;
@@ -1257,7 +1280,7 @@ async function runAutoLeyLineOutcropTask(expRuns, moraRuns, stamina) {
                 const actualCount = Math.min(expRuns, resinSupportedCount);
                 log.info(`当前树脂: ${currentStamina}, 树脂支持次数: ${resinSupportedCount}, 实际执行次数: ${actualCount}`);
                 notification.send(`当前树脂: ${currentStamina}, 树脂支持次数: ${resinSupportedCount}, 实际执行次数: ${actualCount}`);
-                Overlay.updateStage('正在刷取经验书（' + actualCount + '轮）', 90);
+                Overlay.updateStage('共进行（' + actualCount + '轮）正在刷取经验书', 90);
                 let taskParam = new AutoLeyLineOutcropParam();
                 taskParam.Count = actualCount;
                 taskParam.Country = settings.adventurePath || "蒙德";
