@@ -117,13 +117,13 @@
   {
     "name": "uidMaskPositionX",
     "type": "input-text",
-    "label": "UID遮挡图片X坐标位置（距离左边的像素，默认0）",
+    "label": "UID遮挡图片X坐标位置（距离左边的像素，数字增大向右移动。默认0）",
     "default": "0"
   },
   {
     "name": "uidMaskPositionY",
     "type": "input-text",
-    "label": "UID遮挡图片Y坐标位置（距离上边的像素，默认0）",
+    "label": "UID遮挡图片Y坐标位置（距离上边的像素，数字增大向下移动。默认0）",
     "default": "0"
   }
 ]
