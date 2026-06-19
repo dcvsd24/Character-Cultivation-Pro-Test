@@ -381,6 +381,19 @@
             text-overflow: ellipsis;
         }
 
+        /* UID遮挡图片样式 */
+        .uid-mask {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: auto;
+            height: auto;
+            max-width: 300px;
+            max-height: 100px;
+            z-index: 1000;
+            display: none;
+        }
+
         /* Demo 模式样式 */
         .demo-badge {
             position: absolute;
@@ -396,6 +409,9 @@
     </style>
 </head>
 <body>
+    <!-- UID遮挡图片 -->
+    <img class="uid-mask" id="uidMaskImg" src="RecognitionObject/UID遮挡.png" alt="UID遮挡">
+
     <div class="panel" id="panel">
         <!-- 画框四角装饰 -->
         <div class="corner-decor top-left"></div>
@@ -468,6 +484,7 @@
         const demoBadge = document.getElementById('demoBadge');
         const characterNameEl = document.getElementById('characterName');
         const linneaSpriteEl = document.getElementById('linneaSprite');
+        const uidMaskImg = document.getElementById('uidMaskImg');
 
         // DPI 补偿常量：BetterGI 已在服务端处理 DPI 缩放，此处不再需要补偿
         // 注意：C# 端 UpdatePosition 已将物理像素转换为逻辑像素
@@ -573,6 +590,22 @@
                 if (data && data.characterName) {
                     characterNameEl.textContent = '当前培养角色：' + data.characterName;
                     characterNameEl.style.display = 'inline';
+                }
+            } else if (msg.url === '/uidmask') {
+                // 处理 UID 遮挡消息
+                let data = msg.data;
+                if (typeof data === 'string') {
+                    try { data = JSON.parse(data); } catch (e) { return; }
+                }
+                if (data && data.action === 'show') {
+                    uidMaskImg.style.display = 'block';
+                    if (data.x !== undefined) uidMaskImg.style.left = data.x + 'px';
+                    if (data.y !== undefined) uidMaskImg.style.top = data.y + 'px';
+                } else if (data && data.action === 'hide') {
+                    uidMaskImg.style.display = 'none';
+                } else if (data && data.action === 'position') {
+                    if (data.x !== undefined) uidMaskImg.style.left = data.x + 'px';
+                    if (data.y !== undefined) uidMaskImg.style.top = data.y + 'px';
                 }
             }
         }
