@@ -94,14 +94,6 @@ const Main = async () => {
         Overlay.setTotalStages(12);
         Overlay.startTimer();
         
-        // 显示 UID 遮挡图片（如果启用）
-        if (settings.enableUidMask) {
-            const uidMaskX = parseInt(settings.uidMaskPositionX) || 0;
-            const uidMaskY = parseInt(settings.uidMaskPositionY) || 0;
-            await Overlay.showUidMask(uidMaskX, uidMaskY);
-            log.info(`✅ UID遮挡已启用，位置: (${uidMaskX}, ${uidMaskY})`);
-        }
-        
         // 显示遮罩
         await Overlay.showOverlay({
             stage: '准备中',
@@ -111,6 +103,14 @@ const Main = async () => {
             total: 12,
             elapsedTime: '00分00秒'
         });
+        
+        // 显示 UID 遮挡图片（如果启用）- 需要在 showOverlay 之后调用
+        if (settings.enableUidMask) {
+            const uidMaskX = parseInt(settings.uidMaskPositionX) || 0;
+            const uidMaskY = parseInt(settings.uidMaskPositionY) || 0;
+            Overlay.showUidMask(uidMaskX, uidMaskY);
+            log.info(`✅ UID遮挡已启用，位置: (${uidMaskX}, ${uidMaskY})`);
+        }
         
         // 设置角色名称（从 combat_avatar.json 获取标准名称）
         const inputCharacterName = settings.Character ? settings.Character.trim() : "";
