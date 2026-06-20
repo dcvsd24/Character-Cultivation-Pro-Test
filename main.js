@@ -74,6 +74,116 @@ function getStandardCharacterName(inputName) {
     }
 }
 
+// 显示设置弹窗并等待用户操作（复用函数）
+// 返回: savedSettings 对象（用户保存了设置）或 null（超时/取消）
+// options.showAllZeroHint: 为 true 时显示"角色材料已全部收集完成"的黄色闪烁提示
+async function showSettingsModal(currentSettings, options = {}) {
+    const settingsWinId = htmlMask.show("assets/settings-modal.html", "settings-modal");
+    htmlMask.setClickThrough(settingsWinId, false);
+
+    const initSettingsData = JSON.stringify({
+        Character: currentSettings.Character || "",
+        bossRequireCounts: currentSettings.bossRequireCounts || "80级",
+        weaponMaterialRequireCounts: currentSettings.weaponMaterialRequireCounts || "80级",
+        talentBookRequireCounts: currentSettings.talentBookRequireCounts || "1-10-10",
+        teamName: currentSettings.teamName || "",
+        strategyName: currentSettings.strategyName || "",
+        teamName2: currentSettings.teamName2 || "",
+        isNoGrassGod: currentSettings.isNoGrassGod || false,
+        energyMax: currentSettings.energyMax || false,
+        unfairContractTerms: currentSettings.unfairContractTerms || false,
+        checkVersionEnabled: currentSettings.checkVersionEnabled !== false,
+        showSettingsOnStartup: currentSettings.showSettingsOnStartup || false,
+        adventurePath: currentSettings.adventurePath || "蒙德",
+        enableUidMask: currentSettings.enableUidMask || false,
+        uidMaskPositionX: currentSettings.uidMaskPositionX || "0",
+        uidMaskPositionY: currentSettings.uidMaskPositionY || "0",
+        showAllZeroHint: options.showAllZeroHint || false
+    });
+
+    let startTime = Date.now();
+    const timeoutMs = 30000;
+    let savedSettings = null;
+    let initSent = false;
+
+    while (htmlMask.exists(settingsWinId)) {
+        if (Date.now() - startTime >= timeoutMs) {
+            htmlMask.close(settingsWinId);
+            break;
+        }
+
+        const msg = await htmlMask.receive(settingsWinId, 1000);
+        if (msg) {
+            try {
+                const parsed = JSON.parse(msg);
+                if (parsed.url === '/ready') {
+                    // HTML 已就绪，发送初始化设置数据
+                    if (!initSent) {
+                        htmlMask.send(settingsWinId, "/initSettings", initSettingsData);
+                        initSent = true;
+                    }
+                } else if (parsed.url === '/close') {
+                    htmlMask.close(settingsWinId);
+                    let closeData = parsed.data;
+                    if (typeof closeData === 'string') {
+                        try { closeData = JSON.parse(closeData); } catch (e) {}
+                    }
+                    if (closeData && closeData.action === 'cancel') {
+                        return null;
+                    }
+                    break;
+                } else if (parsed.url === '/save') {
+                    let saveData = parsed.data;
+                    if (typeof saveData === 'string') {
+                        try { saveData = JSON.parse(saveData); } catch (e) {}
+                    }
+                    savedSettings = saveData;
+                    htmlMask.close(settingsWinId);
+                    break;
+                } else if (parsed.url === '/userActive') {
+                    startTime = Date.now();
+                }
+            } catch (parseError) {
+                if (msg === '/close') {
+                    htmlMask.close(settingsWinId);
+                    return null;
+                }
+            }
+        }
+    }
+    
+    if (savedSettings) {
+        try {
+            const userSettingsPath = "data/user_settings.json";
+            file.writeTextSync(userSettingsPath, JSON.stringify(savedSettings, null, 2));
+            
+            settings.Character = savedSettings.Character;
+            settings.bossRequireCounts = savedSettings.bossRequireCounts;
+            settings.weaponMaterialRequireCounts = savedSettings.weaponMaterialRequireCounts;
+            settings.talentBookRequireCounts = savedSettings.talentBookRequireCounts;
+            settings.teamName = savedSettings.teamName;
+            settings.strategyName = savedSettings.strategyName;
+            settings.teamName2 = savedSettings.teamName2;
+            settings.isNoGrassGod = savedSettings.isNoGrassGod;
+            settings.energyMax = savedSettings.energyMax;
+            settings.unfairContractTerms = savedSettings.unfairContractTerms;
+            settings.checkVersionEnabled = savedSettings.checkVersionEnabled;
+            settings.showSettingsOnStartup = savedSettings.showSettingsOnStartup;
+            settings.adventurePath = savedSettings.adventurePath;
+            settings.enableUidMask = savedSettings.enableUidMask;
+            settings.uidMaskPositionX = savedSettings.uidMaskPositionX;
+            settings.uidMaskPositionY = savedSettings.uidMaskPositionY;
+            
+            return savedSettings;
+        } catch (saveError) {
+            log.error(`保存设置失败: ${saveError.message}`);
+            return null;
+        }
+    }
+    
+    return null;
+}
+
 // 主逻辑
 const Main = async () => {
     try {
@@ -104,7 +214,109 @@ const Main = async () => {
             elapsedTime: '00分00秒'
         });
         
-        // 显示 UID 遮挡图片（如果启用）- 需要在 showOverlay 之后调用
+        // 初始化快捷键
+        Overlay.initKeyHook();
+        
+        // BetterGI 的 settings 对象可能没有正确读取 default 值
+        // 我们使用三层设置读取策略：
+        // 1. 如果 settings 对象包含所有配置属性，说明用户在 BetterGI UI 界面配置过，优先使用 BetterGI UI 的值
+        // 2. 如果 settings 对象缺少某些属性，优先读取 user_settings.json（用户通过遮罩面板设置的值）
+        // 3. 如果都没有，读取 settings.json 的 default 字段（默认值）
+        function loadSettingsFromJson() {
+            try {
+                // 先尝试读取 user_settings.json（用户通过遮罩面板设置的值）
+                const userSettingsPath = "data/user_settings.json";
+                let userSettings = null;
+                try {
+                    userSettings = JSON.parse(file.readTextSync(userSettingsPath));
+                    log.info("读取到用户自定义设置文件 user_settings.json");
+                } catch (e) {
+                    // user_settings.json 不存在，忽略
+                }
+                
+                // 读取 settings.json 的 default 字段
+                const settingsJsonPath = "settings.json";
+                const settingsJson = JSON.parse(file.readTextSync(settingsJsonPath));
+                
+                // 检查关键配置项是否是用户实际配置的
+                // 关键配置项：Character, teamName, teamName2, unfairContractTerms
+                // 这些配置项没有 default 值，所以只要有值就说明是用户配置的
+                const requiredSettings = ['Character', 'teamName', 'teamName2', 'unfairContractTerms'];
+                let hasUserConfiguredSettings = true;
+                
+                for (const name of requiredSettings) {
+                    const currentValue = settings[name];
+                    
+                    // 检查是否有值
+                    // 对于字符串类型：值不为空
+                    // 对于布尔类型：值为 true
+                    if (name === 'unfairContractTerms') {
+                        // 布尔类型：必须为 true 才算配置过
+                        if (!currentValue) {
+                            hasUserConfiguredSettings = false;
+                            log.info(`关键配置 ${name} 未被用户配置 (当前值: ${currentValue})`);
+                            break;
+                        }
+                    } else {
+                        // 字符串类型：值不为空
+                        if (!currentValue || currentValue.trim() === '') {
+                            hasUserConfiguredSettings = false;
+                            log.info(`关键配置 ${name} 未被用户配置 (当前值: "${currentValue}")`);
+                            break;
+                        }
+                    }
+                }
+                
+                if (hasUserConfiguredSettings) {
+                    log.info("所有关键配置项已被用户在 BetterGI UI 中配置，使用 BetterGI UI 的配置值");
+                    // 如果 user_settings.json 存在，说明用户之前通过遮罩面板设置过
+                    // 但现在 BetterGI UI 有用户配置，应该清除 user_settings.json 以避免混淆
+                    if (userSettings) {
+                        try {
+                            file.delete(userSettingsPath);
+                            log.info("已清除 user_settings.json，因为 BetterGI UI 有用户配置");
+                        } catch (e) {
+                            // 删除失败，忽略
+                        }
+                    }
+                    // 还需要检查其他非关键配置项是否有值，如果没有则从 default 读取
+                    for (const item of settingsJson) {
+                        if (item.name && item.default !== undefined && !requiredSettings.includes(item.name)) {
+                            if (!settings.hasOwnProperty(item.name)) {
+                                settings[item.name] = item.default;
+                                log.info(`从 settings.json 读取 ${item.name}: "${item.default}"`);
+                            }
+                        }
+                    }
+                    return; // 不需要从 user_settings.json 读取关键配置
+                }
+                
+                // settings 对象缺少某些属性，按优先级读取
+                for (const item of settingsJson) {
+                    if (item.name) {
+                        // 如果 settings 对象中没有该属性（或值为 undefined/null），则按优先级读取
+                        if (!settings.hasOwnProperty(item.name) || settings[item.name] === undefined || settings[item.name] === null) {
+                            // 优先读取 user_settings.json
+                            if (userSettings && userSettings[item.name] !== undefined) {
+                                settings[item.name] = userSettings[item.name];
+                                log.info(`从 user_settings.json 读取 ${item.name}: "${userSettings[item.name]}"`);
+                            } else if (item.default !== undefined) {
+                                // 否则读取 settings.json 的 default 字段
+                                settings[item.name] = item.default;
+                                log.info(`从 settings.json 读取 ${item.name}: "${item.default}"`);
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                log.warn(`读取设置文件失败: ${e.message}`);
+            }
+        }
+        
+        // 加载设置
+        loadSettingsFromJson();
+        
+        // 显示 UID 遮挡图片（如果启用）- 需要在 loadSettingsFromJson 之后调用
         if (settings.enableUidMask) {
             const uidMaskX = parseInt(settings.uidMaskPositionX) || 0;
             const uidMaskY = parseInt(settings.uidMaskPositionY) || 0;
@@ -112,8 +324,149 @@ const Main = async () => {
             log.info(`✅ UID遮挡已启用，位置: (${uidMaskX}, ${uidMaskY})`);
         }
         
+        // 检查角色名称是否为空
+        let inputCharacterName = settings.Character ? settings.Character.trim() : "";
+        
+        log.info(`当前角色名称: "${inputCharacterName}"`);
+        
+        // 如果启用了启动时弹出设置弹窗选项，则显示设置弹窗
+        if (settings.showSettingsOnStartup) {
+            log.info("📌 启用了启动时弹出设置弹窗选项，显示设置弹窗");
+            const savedSettings = await showSettingsModal(settings, {});
+            if (savedSettings) {
+                inputCharacterName = savedSettings.Character ? savedSettings.Character.trim() : "";
+            } else {
+                // 用户取消或超时
+                if (!inputCharacterName) {
+                    throw new Error('未配置角色名称，脚本终止');
+                }
+                log.info("📌 用户取消设置弹窗，使用现有配置继续运行");
+            }
+        }
+        
+        if (!inputCharacterName) {
+            log.warn("角色名称为空，请先配置设置");
+            
+            // 显示设置遮罩弹窗
+            const settingsWinId = htmlMask.show("assets/settings-modal.html", "settings-modal");
+            htmlMask.setClickThrough(settingsWinId, false); // 使窗口可交互
+            
+            // 发送当前设置到遮罩
+            htmlMask.send(settingsWinId, "/initSettings", JSON.stringify({
+                Character: settings.Character || "",
+                bossRequireCounts: settings.bossRequireCounts || "80级",
+                weaponMaterialRequireCounts: settings.weaponMaterialRequireCounts || "80级",
+                talentBookRequireCounts: settings.talentBookRequireCounts || "1-10-10",
+                teamName: settings.teamName || "",
+                strategyName: settings.strategyName || "",
+                teamName2: settings.teamName2 || "",
+                isNoGrassGod: settings.isNoGrassGod || false,
+                energyMax: settings.energyMax || false,
+                unfairContractTerms: settings.unfairContractTerms || false,
+                checkVersionEnabled: settings.checkVersionEnabled !== false,
+                showSettingsOnStartup: settings.showSettingsOnStartup || false,
+                adventurePath: settings.adventurePath || "蒙德",
+                enableUidMask: settings.enableUidMask || false,
+                uidMaskPositionX: settings.uidMaskPositionX || "0",
+                uidMaskPositionY: settings.uidMaskPositionY || "0"
+            }));
+            
+            // 等待用户操作（最多30秒，用户操作时会延长）
+            let startTime = Date.now();
+            const timeoutMs = 30000;
+            let savedSettings = null;
+            
+            while (htmlMask.exists(settingsWinId)) {
+                // 检查是否超时
+                if (Date.now() - startTime >= timeoutMs) {
+                    htmlMask.close(settingsWinId);
+                    break;
+                }
+                
+                const msg = await htmlMask.receive(settingsWinId, 1000);
+                if (msg) {
+                    try {
+                        const parsed = JSON.parse(msg);
+                        if (parsed.url === '/close') {
+                            htmlMask.close(settingsWinId);
+                            // 解析 data 中的 action
+                            let closeData = parsed.data;
+                            if (typeof closeData === 'string') {
+                                try { closeData = JSON.parse(closeData); } catch (e) {}
+                            }
+                            if (closeData && closeData.action === 'cancel') {
+                                throw new Error('用户取消设置，脚本终止');
+                            }
+                            break;
+                        } else if (parsed.url === '/save') {
+                            // 解析 data 中的设置数据
+                            let saveData = parsed.data;
+                            if (typeof saveData === 'string') {
+                                try { saveData = JSON.parse(saveData); } catch (e) {}
+                            }
+                            savedSettings = saveData;
+                            htmlMask.close(settingsWinId);
+                            break;
+                        } else if (parsed.url === '/userActive') {
+                            // 用户正在操作，重置超时时间
+                            startTime = Date.now();
+                        }
+                    } catch (parseError) {
+                        // 如果是脚本终止错误，直接抛出
+                        if (parseError.message === '用户取消设置，脚本终止') {
+                            throw parseError;
+                        }
+                        // 可能是简单的字符串消息
+                        if (msg === '/close') {
+                            htmlMask.close(settingsWinId);
+                            throw new Error('用户取消设置，脚本终止');
+                        }
+                    }
+                }
+            }
+            
+            // 如果用户保存了设置，写入 user_settings.json（不修改 settings.json 的 default 字段）
+            if (savedSettings) {
+                try {
+                    log.info(`收到保存的设置: ${JSON.stringify(savedSettings)}`);
+                    
+                    // 将用户设置保存到 user_settings.json
+                    const userSettingsPath = "data/user_settings.json";
+                    file.writeTextSync(userSettingsPath, JSON.stringify(savedSettings, null, 2));
+                    log.info("✅ 设置已保存到 user_settings.json");
+                    
+                    // 更新当前运行时的 settings 对象
+                    settings.Character = savedSettings.Character;
+                    settings.bossRequireCounts = savedSettings.bossRequireCounts;
+                    settings.weaponMaterialRequireCounts = savedSettings.weaponMaterialRequireCounts;
+                    settings.talentBookRequireCounts = savedSettings.talentBookRequireCounts;
+                    settings.teamName = savedSettings.teamName;
+                    settings.strategyName = savedSettings.strategyName;
+                    settings.teamName2 = savedSettings.teamName2;
+                    settings.isNoGrassGod = savedSettings.isNoGrassGod;
+                    settings.energyMax = savedSettings.energyMax;
+                    settings.unfairContractTerms = savedSettings.unfairContractTerms;
+                    settings.checkVersionEnabled = savedSettings.checkVersionEnabled;
+                    settings.showSettingsOnStartup = savedSettings.showSettingsOnStartup;
+                    settings.adventurePath = savedSettings.adventurePath;
+                    settings.enableUidMask = savedSettings.enableUidMask;
+                    settings.uidMaskPositionX = savedSettings.uidMaskPositionX;
+                    settings.uidMaskPositionY = savedSettings.uidMaskPositionY;
+                    
+                    // 更新 inputCharacterName 变量
+                    inputCharacterName = savedSettings.Character ? savedSettings.Character.trim() : "";
+                    
+                    log.info("设置已更新，继续运行脚本");
+                } catch (saveError) {
+                    log.error(`保存设置失败: ${saveError.message}`);
+                    throw new Error('保存设置失败，脚本终止');
+                }
+            } else {
+                throw new Error('未配置角色名称，脚本终止');
+            }
+        }
+        
         // 设置角色名称（从 combat_avatar.json 获取标准名称）
-        const inputCharacterName = settings.Character ? settings.Character.trim() : "";
         if (inputCharacterName) {
             const standardCharacterName = getStandardCharacterName(inputCharacterName);
             if (standardCharacterName) {
@@ -123,9 +476,6 @@ const Main = async () => {
                 log.warn(`未找到角色 "${inputCharacterName}" 的标准名称`);
             }
         }
-        
-        // 初始化快捷键
-        Overlay.initKeyHook();
         
         // 检查霸王条款
         if (!settings.unfairContractTerms) {
@@ -214,6 +564,50 @@ const Main = async () => {
             log.warn(`保存UID到配置文件失败: ${e.message}`);
         }
         
+        // ========== 全零检查与设置弹窗逻辑 ==========
+        // 检查同一UID、同一角色的8个材料需求是否全为零
+        const configForZeroCheck = Utils.readJson(Constants.CONFIG_PATH);
+        const allZero = TaskManager.checkAllRequirementsZero(configForZeroCheck);
+        
+        if (allZero) {
+            const currentCharacterNameForCheck = getStandardCharacterName(settings.Character) || (settings.Character ? settings.Character.trim() : "未知角色");
+            log.info(`📌 角色【${currentCharacterNameForCheck}】的8个材料需求全为零`);
+            
+            // 检查3天例外：同一UID下是否有其他角色在3天内材料需求全为零
+            // 如果有，说明可能是多角色共用材料导致数量误判为零，按原配置继续运行
+            const hasOtherAllZero = TaskManager.hasOtherCharactersAllZeroWithin3Days(currentUid, currentCharacterNameForCheck);
+            
+            if (hasOtherAllZero) {
+                log.info(`📌 检测到同一UID下有其他角色在3天内材料需求全为零，可能共用材料导致误判，按原配置继续运行`);
+            } else {
+                log.info(`📌 未检测到3天内的多角色共用材料情况，弹出设置弹窗供用户修改配置`);
+                Overlay.updateStage('配置确认', '材料需求全为零，等待用户修改配置...', 15);
+                
+                const savedSettings = await showSettingsModal(settings, { showAllZeroHint: true });
+                
+                if (savedSettings) {
+                    // 用户修改了配置，重新执行角色识别与材料计算流程
+                    log.info(`📌 用户已修改配置，重新执行角色识别与材料计算流程`);
+                    // 同步更新进度遮罩中显示的角色名称
+                    const updatedCharacterName = getStandardCharacterName(settings.Character) || (settings.Character ? settings.Character.trim() : "未知角色");
+                    Overlay.setCharacterName(updatedCharacterName);
+                    Overlay.updateStage('角色识别与材料计算', '正在重新识别角色材料信息...', 10);
+                    const reRecognitionSuccess = await Character.findCharacterAndGetLevel();
+                    if (!reRecognitionSuccess) {
+                        log.error("❌ 重新角色识别失败，终止主流程");
+                        notification.error("重新角色识别失败，请检查角色是否正确配置");
+                        return;
+                    }
+                } else {
+                    // 超时未修改，结束运行
+                    log.warn(`⚠️ 设置弹窗超时未修改，结束运行`);
+                    notification.send("材料需求全为零且超时未修改配置，结束运行");
+                    await genshin.returnMainUi();
+                    return;
+                }
+            }
+        }
+        
         setGameMetrics(1920, 1080, 1);
         
         // 天赋书刷取逻辑
@@ -252,7 +646,7 @@ const Main = async () => {
             if (talentBookName) {
                 Overlay.updateStage('天赋书刷取', '刷取材料：' + talentBookName+  ' ❃获取中...', 25);
             }
-            const currentCharacterName = settings.Character ? settings.Character.trim() : "未知角色";
+            const currentCharacterName = getStandardCharacterName(settings.Character) || (settings.Character ? settings.Character.trim() : "未知角色");
             if (talentBookName && talentBookName !== "无") {
                 try {
                     const talentBookConfigKey = `talentBookRequireCounts${i}`;
@@ -315,7 +709,7 @@ const Main = async () => {
             if (weaponName) {
                 Overlay.updateStage('武器材料刷取', '刷取材料：' + weaponName+  '  ❃获取中...', 40);
             }
-            const currentCharacterName = settings.Character ? settings.Character.trim() : "未知角色";
+            const currentCharacterName = getStandardCharacterName(settings.Character) || (settings.Character ? settings.Character.trim() : "未知角色");
             if (weaponName && weaponName !== "无") {
                 try {
                     const weaponConfigKey = `weaponMaterialRequireCounts${i}`;
@@ -397,7 +791,7 @@ const Main = async () => {
             if (bossName) {
                 Overlay.updateStage('首领材料刷取', '刷取材料：' + bossName + ' ❃获取中...', 50);
             }
-            const currentCharacterName = settings.Character ? settings.Character.trim() : "未知角色";
+            const currentCharacterName = getStandardCharacterName(settings.Character) || (settings.Character ? settings.Character.trim() : "未知角色");
             if (bossName && bossName !== "无") {
                 try {
                     const bossConfigKey = `bossRequireCounts${i}`;
@@ -664,6 +1058,26 @@ async function executeMaterialCollection(options) {
     if (currentAmount <= 0) {
         log.info(`[${materialType}] 需求数量为0，跳过执行`);
         Utils.addNotification(`[${materialType}] 需求数量为0，跳过执行`);
+        
+        // 需求为零时也保存到完成任务记录
+        const currentCharacterName = getStandardCharacterName(settings.Character) || (settings.Character ? settings.Character.trim() : "未知角色");
+        let taskMaterialType, taskMaterialName;
+        if (type === 'local') {
+            taskMaterialType = 'local';
+            taskMaterialName = keywords;
+        } else if (type === 'magic') {
+            taskMaterialType = 'magic';
+            taskMaterialName = Array.isArray(keywords) ? keywords.join(', ') : keywords;
+        } else if (type === 'weapons1') {
+            taskMaterialType = 'weapons1';
+            taskMaterialName = Array.isArray(keywords) ? keywords.join(', ') : keywords;
+        } else if (type === 'weapons2') {
+            taskMaterialType = 'weapons2';
+            taskMaterialName = Array.isArray(keywords) ? keywords.join(', ') : keywords;
+        }
+        if (taskMaterialType && taskMaterialName) {
+            await TaskManager.addCompletedTask(taskMaterialType, taskMaterialName, 0, currentCharacterName, currentUid);
+        }
         return false;
     }
     
@@ -759,6 +1173,32 @@ async function executeMaterialCollection(options) {
         isCompleted = await executeLocalBatch(availableScripts, isExcludeGrassGod, materialType, currentUid, cooldown, cooldownRecord, type);
     } else {
         isCompleted = await executeMonsterBatch(availableScripts, configKey, materialType, currentUid, cooldown, cooldownRecord, type);
+    }
+    
+    // 采集完成后如果需求变为零，保存到完成任务记录
+    if (isCompleted) {
+        const newConfig = Utils.readJson(Constants.CONFIG_PATH);
+        const newAmount = Number(newConfig[configKey]) || 0;
+        if (newAmount <= 0) {
+            const currentCharacterName = getStandardCharacterName(settings.Character) || (settings.Character ? settings.Character.trim() : "未知角色");
+            let taskMaterialType, taskMaterialName;
+            if (type === 'local') {
+                taskMaterialType = 'local';
+                taskMaterialName = keywords;
+            } else if (type === 'magic') {
+                taskMaterialType = 'magic';
+                taskMaterialName = Array.isArray(keywords) ? keywords.join(', ') : keywords;
+            } else if (type === 'weapons1') {
+                taskMaterialType = 'weapons1';
+                taskMaterialName = Array.isArray(keywords) ? keywords.join(', ') : keywords;
+            } else if (type === 'weapons2') {
+                taskMaterialType = 'weapons2';
+                taskMaterialName = Array.isArray(keywords) ? keywords.join(', ') : keywords;
+            }
+            if (taskMaterialType && taskMaterialName) {
+                await TaskManager.addCompletedTask(taskMaterialType, taskMaterialName, 0, currentCharacterName, currentUid);
+            }
+        }
     }
     
     return isCompleted;
@@ -1060,6 +1500,19 @@ async function runLeyLineManagement() {
             const moraLeyLineResult = resinCalculation.calculateMoraLeyLineRuns(moraShortage, worldLevel);
             moraRuns = moraLeyLineResult.totalRuns;
             log.info(`摩拉地脉花次数: ${moraRuns}, 每次摩拉掉落: ${moraLeyLineResult.moraPerRun}`);
+        }
+
+        // 保存经验书/摩拉地脉花的零需求任务记录
+        const leyLineConfig = Utils.readJson(Constants.CONFIG_PATH);
+        const leyLineUid = leyLineConfig["currentUid"] || Constants.DEFAULT_UID;
+        const leyLineCharacterName = getStandardCharacterName(settings.Character) || (settings.Character ? settings.Character.trim() : "未知角色");
+        if (expRuns <= 0) {
+            log.info(`经验书地脉花需求为零，保存到完成任务记录`);
+            await TaskManager.addCompletedTask("exp", "经验书地脉花", 0, leyLineCharacterName, leyLineUid);
+        }
+        if (moraRuns <= 0) {
+            log.info(`摩拉地脉花需求为零，保存到完成任务记录`);
+            await TaskManager.addCompletedTask("mora", "摩拉地脉花", 0, leyLineCharacterName, leyLineUid);
         }
 
         // 执行地脉花任务
