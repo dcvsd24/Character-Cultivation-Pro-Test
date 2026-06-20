@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>脚本设置</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: transparent;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            overflow: hidden;
+            user-select: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-box {
+            width: 880px;
+            max-height: 95vh;
+            background: linear-gradient(135deg, rgba(20, 25, 40, 0.95), rgba(30, 35, 55, 0.95));
+            border-radius: 12px;
+            padding: 24px 28px;
+            color: #fff;
+            box-shadow:
+                0 8px 32px rgba(0, 0, 0, 0.4),
+                0 0 0 1px rgba(255, 255, 255, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            transform: translate(-80px, -50px);
+            overflow-y: auto;
+        }
+
+        /* 画框线条装饰 */
+        .modal-box::before {
+            content: '';
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            right: 8px;
+            bottom: 8px;
+            border: 2px solid rgba(118, 15, 177, 0.879);
+            border-radius: 8px;
+            pointer-events: none;
+        }
+
+        .modal-box::after {
+            content: '';
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            right: 12px;
+            bottom: 12px;
+            border: 1px solid rgba(136, 61, 233, 0.496);
+            border-radius: 6px;
+            pointer-events: none;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #c79ee0;
+        }
+
+        .all-zero-hint {
+            margin-left: 12px;
+            font-size: 17px;
+            color: #fbbf24;
+            display: none;
+        }
+
+        @keyframes hintFadeInOut {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .close-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 18px;
+            transition: all 0.2s;
+        }
+
+        .close-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .settings-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .setting-group {
+            background: rgba(40, 45, 60, 0.6);
+            border: 1px solid rgba(136, 61, 233, 0.3);
+            border-radius: 8px;
+            padding: 10px;
+        }
+        
+        /* 必填设置组占满整行 */
+        .setting-group:first-child {
+            grid-column: 1 / -1;
+        }
+
+        .setting-group-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #c79ee0;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(136, 61, 233, 0.2);
+        }
+
+        .setting-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        .setting-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .setting-label {
+            font-size: 14px;
+            color: #e0e0e0;
+        }
+
+        .setting-input {
+            background: rgba(20, 25, 40, 0.8);
+            border: 1px solid rgba(136, 61, 233, 0.3);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .setting-input:focus {
+            border-color: rgba(136, 61, 233, 0.6);
+        }
+
+        .setting-select {
+            background: rgba(20, 25, 40, 0.8);
+            border: 1px solid rgba(136, 61, 233, 0.3);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .setting-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .checkbox-input {
+            width: 18px;
+            height: 18px;
+            accent-color: #764ba2;
+            cursor: pointer;
+        }
+
+        .checkbox-label {
+            font-size: 14px;
+            color: #e0e0e0;
+            cursor: pointer;
+        }
+
+        .required-label {
+            color: #f59e0b;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 18px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            border: none;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .countdown-text {
+            font-size: 13px;
+            color: #f59e0b;
+            text-align: right;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center;">
+                    <div class="modal-title">⚙️ 脚本设置配置</div>
+                    <span class="all-zero-hint" id="allZeroHint">角色材料已全部收集完成！请配置新的角色。</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span class="countdown-text" id="countdownText">30秒后自动关闭</span>
+                    <button class="close-btn" id="cancelBtn">✕</button>
+                </div>
+            </div>
+            
+            <div class="settings-container">
+                <!-- 必填设置 -->
+                <div class="setting-group">
+                    <div class="setting-group-title">📌 必填设置</div>
+                    
+                    <div class="setting-item">
+                        <label class="setting-label required-label">【请输入培养的角色名称】不要输错角色的名称，否则会识别角色出错</label>
+                        <input type="text" id="Character" class="setting-input" placeholder="请输入角色名称">
+                    </div>
+                </div>
+                
+                <!-- 突破等级设置 -->
+                <div class="setting-group">
+                    <div class="setting-group-title">📈 突破等级设置</div>
+                    
+                    <div class="setting-item">
+                        <label class="setting-label">【角色突破目标等级】你想升到多少级然后不再刷材料，80级突破对应90级。</label>
+                        <select id="bossRequireCounts" class="setting-select">
+                            <option value="80级">80级</option>
+                            <option value="70级">70级</option>
+                            <option value="60级">60级</option>
+                            <option value="50级">50级</option>
+                            <option value="40级">40级</option>
+                            <option value="20级">20级</option>
+                        </select>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label class="setting-label">【武器突破目标等级】你想升到多少级然后不再刷材料，80级突破对应90级。</label>
+                        <select id="weaponMaterialRequireCounts" class="setting-select">
+                            <option value="80级">80级</option>
+                            <option value="70级">70级</option>
+                            <option value="60级">60级</option>
+                            <option value="50级">50级</option>
+                            <option value="40级">40级</option>
+                            <option value="20级">20级</option>
+                        </select>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label class="setting-label">目标天赋等级 【你想升到多少级然后不再刷材料】(x-y-z，x代表普攻，y代表战技，z代表大招)</label>
+                        <input type="text" id="talentBookRequireCounts" class="setting-input" placeholder="例如：1-10-10,  默认：1-10-10" value="1-10-10">
+                    </div>
+                </div>
+                
+                <!-- 队伍设置 -->
+                <div class="setting-group">
+                    <div class="setting-group-title">👥 队伍设置[必填]</div>
+                    
+                    <div class="setting-item">
+                        <label class="setting-label">挑战队伍名称（开启秘境和boss挑战前切换的队伍）</label>
+                        <input type="text" id="teamName" class="setting-input" placeholder="必填">
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label class="setting-label">战斗策略名称（默认为auto）</label>
+                        <input type="text" id="strategyName" class="setting-input" placeholder="可选">
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label class="setting-label">采集队伍名称（用于采集时可能需要草神、水、风、雷元素角色等）</label>
+                        <input type="text" id="teamName2" class="setting-input" placeholder="必填">
+                    </div>
+                </div>
+                
+                <!-- 其他选项 -->
+                <div class="setting-group">
+                    <div class="setting-group-title">🔧 其他选项[必填]</div>
+                    
+                    <div class="setting-item">
+                        <div class="setting-checkbox">
+                            <input type="checkbox" id="isNoGrassGod" class="checkbox-input">
+                            <label class="checkbox-label" for="isNoGrassGod">【勾选则排除】有草神的线路</label>
+                        </div>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <div class="setting-checkbox">
+                            <input type="checkbox" id="energyMax" class="checkbox-input">
+                            <label class="checkbox-label" for="energyMax">【勾选后】挑战Boss前先去恢复满能量</label>
+                        </div>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <div class="setting-checkbox">
+                            <input type="checkbox" id="unfairContractTerms" class="checkbox-input">
+                            <label class="checkbox-label" for="unfairContractTerms" style="color: #ffc107;">签署霸王条款开启使用，出了事跟作者无关</label>
+                        </div>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <div class="setting-checkbox">
+                            <input type="checkbox" id="checkVersionEnabled" class="checkbox-input" checked>
+                            <label class="checkbox-label" for="checkVersionEnabled">启用版本检查（脚本启动时检查更新）</label>
+                        </div>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <div class="setting-checkbox">
+                            <input type="checkbox" id="showSettingsOnStartup" class="checkbox-input">
+                            <label class="checkbox-label" for="showSettingsOnStartup">每次启动时弹出设置弹窗</label>
+                        </div>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label class="setting-label">前往指定地区的地脉之花</label>
+                        <select id="adventurePath" class="setting-select">
+                            <option value="蒙德">蒙德</option>
+                            <option value="璃月">璃月</option>
+                            <option value="稻妻">稻妻</option>
+                            <option value="枫丹">枫丹</option>
+                            <option value="纳塔">纳塔</option>
+                            <option value="挪德卡莱">挪德卡莱</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- UID遮挡设置 -->
+                <div class="setting-group">
+                    <div class="setting-group-title">🔒 UID遮挡设置</div>
+                    
+                    <div class="setting-item">
+                        <div class="setting-checkbox">
+                            <input type="checkbox" id="enableUidMask" class="checkbox-input">
+                            <label class="checkbox-label" for="enableUidMask">【启用UID遮挡】在左上角显示UID遮挡图片</label>
+                        </div>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label class="setting-label">UID遮挡图片X坐标位置（距离左边的像素，数值增大向右移动。）</label>
+                        <input type="text" id="uidMaskPositionX" class="setting-input" placeholder="默认31，数值越大向右移动。" value="31">
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label class="setting-label">UID遮挡图片Y坐标位置（距离上边的像素，数值增大向下移动。）</label>
+                        <input type="text" id="uidMaskPositionY" class="setting-input" placeholder="默认117，数值越大向下移动。" value="117">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="button-group">
+                <button class="btn btn-secondary" id="cancelBtn2">取消</button>
+                <button class="btn btn-primary" id="saveBtn">保存并运行</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let countdown = 30;
+        let countdownInterval = null;
+        let isClosed = false;
+
+        // 重置倒计时（用户操作时调用）
+        function resetCountdown() {
+            countdown = 30;
+            document.getElementById('countdownText').textContent = countdown + '秒后自动关闭';
+            
+            // 通知主脚本用户正在操作
+            if (window.htmlMask) {
+                try {
+                    window.htmlMask.request('/userActive', '{}');
+                } catch (e) {
+                    console.error('userActive 请求异常:', e);
+                }
+            }
+        }
+
+        // 更新倒计时显示
+        function updateCountdown() {
+            countdown--;
+            document.getElementById('countdownText').textContent = countdown + '秒后自动关闭';
+            if (countdown <= 0) {
+                closeWindow('timeout');
+            }
+        }
+
+        // 关闭窗口
+        function closeWindow(action) {
+            if (isClosed) return;
+            isClosed = true;
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+            // 通知 JS 端关闭窗口
+            if (window.htmlMask) {
+                window.htmlMask.request('/close', JSON.stringify({ action: action }));
+            }
+        }
+
+        // 保存设置
+        function saveSettings() {
+            const settings = {
+                Character: document.getElementById('Character').value.trim(),
+                bossRequireCounts: document.getElementById('bossRequireCounts').value,
+                weaponMaterialRequireCounts: document.getElementById('weaponMaterialRequireCounts').value,
+                talentBookRequireCounts: document.getElementById('talentBookRequireCounts').value.trim() || '1-10-10',
+                teamName: document.getElementById('teamName').value.trim(),
+                strategyName: document.getElementById('strategyName').value.trim(),
+                teamName2: document.getElementById('teamName2').value.trim(),
+                isNoGrassGod: document.getElementById('isNoGrassGod').checked,
+                energyMax: document.getElementById('energyMax').checked,
+                unfairContractTerms: document.getElementById('unfairContractTerms').checked,
+                checkVersionEnabled: document.getElementById('checkVersionEnabled').checked,
+                showSettingsOnStartup: document.getElementById('showSettingsOnStartup').checked,
+                adventurePath: document.getElementById('adventurePath').value,
+                enableUidMask: document.getElementById('enableUidMask').checked,
+                uidMaskPositionX: document.getElementById('uidMaskPositionX').value.trim() || '31',
+                uidMaskPositionY: document.getElementById('uidMaskPositionY').value.trim() || '117'
+            };
+
+            if (window.htmlMask) {
+                // 只发送 /save 消息，让主脚本关闭窗口
+                window.htmlMask.request('/save', JSON.stringify(settings));
+            }
+        }
+
+        // 初始化设置值
+        function initSettings(data) {
+            try {
+                const settings = typeof data === 'string' ? JSON.parse(data) : data;
+                if (settings.Character) document.getElementById('Character').value = settings.Character;
+                if (settings.bossRequireCounts) document.getElementById('bossRequireCounts').value = settings.bossRequireCounts;
+                if (settings.weaponMaterialRequireCounts) document.getElementById('weaponMaterialRequireCounts').value = settings.weaponMaterialRequireCounts;
+                document.getElementById('talentBookRequireCounts').value = settings.talentBookRequireCounts || '1-10-10';
+                if (settings.teamName) document.getElementById('teamName').value = settings.teamName;
+                if (settings.strategyName) document.getElementById('strategyName').value = settings.strategyName;
+                if (settings.teamName2) document.getElementById('teamName2').value = settings.teamName2;
+                document.getElementById('isNoGrassGod').checked = settings.isNoGrassGod || false;
+                document.getElementById('energyMax').checked = settings.energyMax || false;
+                document.getElementById('unfairContractTerms').checked = settings.unfairContractTerms || false;
+                document.getElementById('checkVersionEnabled').checked = settings.checkVersionEnabled !== false;
+                document.getElementById('showSettingsOnStartup').checked = settings.showSettingsOnStartup || false;
+                if (settings.adventurePath) document.getElementById('adventurePath').value = settings.adventurePath;
+                document.getElementById('enableUidMask').checked = settings.enableUidMask || false;
+                document.getElementById('uidMaskPositionX').value = settings.uidMaskPositionX || '31';
+                document.getElementById('uidMaskPositionY').value = settings.uidMaskPositionY || '117';
+                // 全零提示
+                if (settings.showAllZeroHint) {
+                    const hintEl = document.getElementById('allZeroHint');
+                    if (hintEl) {
+                        hintEl.style.display = 'inline-block';
+                        hintEl.style.animation = 'hintFadeInOut 2s ease-in-out infinite';
+                    }
+                }
+            } catch (e) {
+                console.error('初始化设置失败:', e);
+            }
+        }
+
+        // 关闭按钮点击事件
+        document.getElementById('cancelBtn').addEventListener('click', () => closeWindow('cancel'));
+        document.getElementById('cancelBtn2').addEventListener('click', () => closeWindow('cancel'));
+        document.getElementById('saveBtn').addEventListener('click', saveSettings);
+
+        // 用户操作时重置倒计时
+        document.querySelectorAll('.setting-input, .setting-select').forEach(el => {
+            el.addEventListener('focus', resetCountdown);
+            el.addEventListener('change', resetCountdown);
+            el.addEventListener('input', resetCountdown);
+        });
+        document.querySelectorAll('.checkbox-input').forEach(el => {
+            el.addEventListener('change', resetCountdown);
+        });
+
+        // 初始化
+        function init() {
+            // 启动倒计时
+            countdownInterval = setInterval(updateCountdown, 1000);
+
+            if (window.htmlMask) {
+                // 设置消息回调
+                window.htmlMask.onMessage = function(msg) {
+                    try {
+                        const parsed = typeof msg === 'string' ? JSON.parse(msg) : msg;
+                        if (parsed.url === '/initSettings') {
+                            initSettings(parsed.data);
+                        }
+                    } catch (e) {
+                        console.error('消息解析失败:', e);
+                    }
+                };
+                // 通知脚本就绪
+                try {
+                    window.htmlMask.request('/ready', '{}');
+                } catch (e) {
+                    console.error('ready 请求异常:', e);
+                }
+            }
+        }
+
+        // 启动
+        try {
+            init();
+        } catch (e) {
+            console.error('初始化异常:', e);
+        }
+    </script>
+</body>
+</html>
