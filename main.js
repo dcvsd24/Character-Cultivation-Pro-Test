@@ -268,17 +268,27 @@ const Main = async () => {
                 }
                 
                 if (hasUserConfiguredSettings) {
-                    log.info("所有关键配置项已被用户在 BetterGI UI 中配置，使用 BetterGI UI 的配置值");
-                    // 如果 user_settings.json 存在，说明用户之前通过遮罩面板设置过
-                    // 但现在 BetterGI UI 有用户配置，应该清除 user_settings.json 以避免混淆
-                    if (userSettings) {
-                        try {
-                            file.delete(userSettingsPath);
-                            log.info("已清除 user_settings.json，因为 BetterGI UI 有用户配置");
-                        } catch (e) {
-                            // 删除失败，忽略
+                    // BetterGI 新功能会在脚本运行后保存 settings 对象
+                    // 所以 settings 对象包含最新的配置（用户在弹窗中修改的配置会被 BetterGI 保存）
+                    // 优先使用 settings 对象的配置，同时同步到 user_settings.json 作为备份
+                    
+                    log.info("使用 BetterGI 保存的最新配置（settings 对象）");
+                    
+                    // 将 settings 对象的配置同步保存到 user_settings.json 作为备份
+                    // 这样即使 BetterGI 的保存功能出现问题，也能从 user_settings.json 恢复
+                    try {
+                        const settingsToSave = {};
+                        for (const item of settingsJson) {
+                            if (item.name && settings[item.name] !== undefined) {
+                                settingsToSave[item.name] = settings[item.name];
+                            }
                         }
+                        file.writeTextSync(userSettingsPath, JSON.stringify(settingsToSave, null, 2));
+                        log.info("已将当前配置同步保存到 user_settings.json 作为备份");
+                    } catch (e) {
+                        log.warn(`同步保存配置到 user_settings.json 失败: ${e.message}`);
                     }
+                    
                     // 还需要检查其他非关键配置项是否有值，如果没有则从 default 读取
                     for (const item of settingsJson) {
                         if (item.name && item.default !== undefined && !requiredSettings.includes(item.name)) {
@@ -288,7 +298,7 @@ const Main = async () => {
                             }
                         }
                     }
-                    return; // 不需要从 user_settings.json 读取关键配置
+                    return;
                 }
                 
                 // settings 对象缺少某些属性，按优先级读取
