@@ -35,7 +35,7 @@
         }
 
         .modal-box {
-            width: 880px;
+            width: 950px;
             max-height: 95vh;
             background: linear-gradient(135deg, rgba(20, 25, 40, 0.95), rgba(30, 35, 55, 0.95));
             border-radius: 12px;
@@ -46,7 +46,7 @@
                 0 0 0 1px rgba(255, 255, 255, 0.1),
                 inset 0 1px 0 rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
-            transform: translate(-80px, -50px);
+            transform: translate(-80px, -5px);
             overflow-y: auto;
         }
 
@@ -215,11 +215,11 @@
             display: flex;
             gap: 12px;
             margin-top: 18px;
+            justify-content: flex-end;
         }
 
         .btn {
-            flex: 1;
-            padding: 12px;
+            padding: 12px 24px;
             font-size: 15px;
             font-weight: 600;
             border-radius: 8px;
@@ -408,12 +408,14 @@
                         <label class="setting-label">UID遮挡图片Y坐标位置（距离上边的像素，数值增大向下移动。）</label>
                         <input type="text" id="uidMaskPositionY" class="setting-input" placeholder="默认117，数值越大向下移动。" value="117">
                     </div>
+                    
+                    <div class="setting-item" style="margin-top: 16px;">
+                        <div class="button-group" style="margin-top: 0;">
+                            <button class="btn btn-secondary" id="cancelBtn2">取消</button>
+                            <button class="btn btn-primary" id="saveBtn">保存并运行</button>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            
-            <div class="button-group">
-                <button class="btn btn-secondary" id="cancelBtn2">取消</button>
-                <button class="btn btn-primary" id="saveBtn">保存并运行</button>
             </div>
         </div>
     </div>
