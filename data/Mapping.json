@@ -60,7 +60,7 @@
     "nameEn": "Wild Ambushers"
   },
   {
-    "alias": ["盗宝团"],
+    "alias": ["盗宝团","盗宝团成员"],
     "id": "0011",
     "name": "盗宝团",
     "nameEn": "Treasure Hunters"
@@ -84,7 +84,7 @@
     "nameEn": "Qiuqiu People"
   },
   {
-    "alias": ["丘丘射手","丘丘人射手"],
+    "alias": ["丘丘射手","丘丘人射手","射手类丘丘人"],
     "id": "0015",
     "name": "丘丘射手",
     "nameEn": "Qiuqiu Archer"
@@ -246,7 +246,7 @@
     "nameEn": "Rock Dragon Lizard"
   },
   {
-    "alias": ["丘丘王","丘丘暴徒"],
+    "alias": ["丘丘王","丘丘暴徒","大体格丘丘人"],
     "id": "0042",
     "name": "丘丘王",
     "nameEn": "Qiuqiu King"
@@ -270,7 +270,7 @@
     "nameEn": "Fatui Debt Handler"
   },
   {
-    "alias": ["丘丘暴徒","丘丘王"],
+    "alias": ["丘丘暴徒","丘丘王","大体格丘丘人"],
     "id": "0046",
     "name": "丘丘暴徒",
     "nameEn": "Qiuqiu Thug"
@@ -288,9 +288,15 @@
     "nameEn": "Abyss Mage"
   },
   {
-    "alias": ["愚人众·萤术士","愚人众萤术士","萤术士"],
+    "alias": ["愚人众·萤术士","愚人众萤术士","萤术士","雷萤术士"],
     "id": "0049",
     "name": "愚人众·萤术士",
     "nameEn": "Fatui Firefly Mage"
+  },
+  {
+    "alias": ["辖域守护者"],
+    "id": "0050",
+    "name": "辖域守护者",
+    "nameEn": "Domain Guardian"
   }
 ]
