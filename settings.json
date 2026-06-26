@@ -81,7 +81,19 @@
     "name": "showSettingsOnStartup",
     "type": "checkbox",
     "label": "每次启动时弹出设置弹窗（启用后每次启动都会显示设置界面，取消或超时后使用现有配置继续）",
+    "default": true
+  },
+  {
+    "name": "enableWikiDataFetch",
+    "type": "checkbox",
+    "label": "【启用从网页获取角色材料数据】启用后将从B站Wiki自动获取Boss名称、天赋怪物名称、区域特产名称、天赋书名称，并自动填充对应配置",
     "default": false
+  },
+  {
+    "name": "weaponName",
+    "type": "input-text",
+    "label": "【武器名称】启用Wiki模式时需要输入武器名称，用于获取武器星级信息",
+    "default": ""
   },
   {
     "name": "adventurePath",
