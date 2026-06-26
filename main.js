@@ -20,6 +20,7 @@ eval(file.readTextSync("lib/calculator.js"));
 eval(file.readTextSync("lib/image_recognition.js"));
 eval(file.readTextSync("lib/file_utils.js"));
 eval(file.readTextSync("lib/overlay.js"));
+eval(file.readTextSync("lib/wiki.js"));
 
 log.info("所有模块加载完成");
 
@@ -27,7 +28,7 @@ log.info("所有模块加载完成");
 function checkModulesLoaded() {
     const requiredModules = ['Constants', 'Utils', 'TaskManager', 'OcrHelper', 'Navigation', 'Combat', 'Inventory', 'Farming', 'Collection', 'Character', 'ImageRecognition', 'FileUtils', 'expCalculator', 'moraCalculation', 'resinCalculation'];
     const missingModules = [];
-    
+
     for (const moduleName of requiredModules) {
         try {
             const moduleType = eval("typeof " + moduleName);
@@ -38,12 +39,73 @@ function checkModulesLoaded() {
             missingModules.push(moduleName);
         }
     }
-    
+
     if (missingModules.length > 0) {
         log.error("以下模块加载失败: " + missingModules.join(", "));
         return false;
     }
     return true;
+}
+
+// 显示错误弹窗（通用函数）
+// options: { title, message, timeout, showAgreeBtn, onAgree }
+// 返回: true 表示用户同意（如果 showAgreeBtn 为 true），false 表示用户关闭或超时
+async function showErrorModal(options = {}) {
+    const {
+        title = '错误',
+        message = '发生未知错误',
+        timeout = 20,
+        showAgreeBtn = false,
+        onAgree = null
+    } = options;
+
+    const warningWinId = htmlMask.show("assets/warning-modal.html", "warning-modal");
+    htmlMask.setClickThrough(warningWinId, false);
+
+    // 等待弹窗就绪
+    const startTime = Date.now();
+    const timeoutMs = timeout * 1000;
+    let userAgreed = false;
+    let initSent = false;
+
+    // 先等待弹窗发送 ready 消息
+    while (htmlMask.exists(warningWinId)) {
+        if (Date.now() - startTime >= timeoutMs) {
+            htmlMask.close(warningWinId);
+            break;
+        }
+
+        const msg = await htmlMask.receive(warningWinId, 1000);
+        if (msg) {
+            const parsed = JSON.parse(msg);
+            if (parsed.url === '/ready') {
+                // 弹窗已就绪，等待一小段时间确保消息处理设置完成
+                await sleep(500);
+                // 发送初始化数据
+                if (!initSent) {
+                    htmlMask.send(warningWinId, "/initError", JSON.stringify({
+                        title: title,
+                        message: message,
+                        timeout: timeout,
+                        showAgreeBtn: showAgreeBtn
+                    }));
+                    initSent = true;
+                }
+            } else if (parsed.url === '/close') {
+                htmlMask.close(warningWinId);
+                break;
+            } else if (parsed.url === '/agree') {
+                userAgreed = true;
+                htmlMask.close(warningWinId);
+                if (onAgree) {
+                    await onAgree();
+                }
+                break;
+            }
+        }
+    }
+
+    return userAgreed;
 }
 
 // 根据用户输入的角色名称获取标准名称（从 combat_avatar.json）
@@ -94,6 +156,8 @@ async function showSettingsModal(currentSettings, options = {}) {
         unfairContractTerms: currentSettings.unfairContractTerms || false,
         checkVersionEnabled: currentSettings.checkVersionEnabled !== false,
         showSettingsOnStartup: currentSettings.showSettingsOnStartup || false,
+        enableWikiDataFetch: currentSettings.enableWikiDataFetch || false,
+        weaponName: currentSettings.weaponName || "",
         adventurePath: currentSettings.adventurePath || "蒙德",
         enableUidMask: currentSettings.enableUidMask || false,
         uidMaskPositionX: currentSettings.uidMaskPositionX || "0",
@@ -169,6 +233,8 @@ async function showSettingsModal(currentSettings, options = {}) {
             settings.unfairContractTerms = savedSettings.unfairContractTerms;
             settings.checkVersionEnabled = savedSettings.checkVersionEnabled;
             settings.showSettingsOnStartup = savedSettings.showSettingsOnStartup;
+            settings.enableWikiDataFetch = savedSettings.enableWikiDataFetch;
+            settings.weaponName = savedSettings.weaponName || "";
             settings.adventurePath = savedSettings.adventurePath;
             settings.enableUidMask = savedSettings.enableUidMask;
             settings.uidMaskPositionX = savedSettings.uidMaskPositionX;
@@ -345,6 +411,16 @@ const Main = async () => {
             const savedSettings = await showSettingsModal(settings, {});
             if (savedSettings) {
                 inputCharacterName = savedSettings.Character ? savedSettings.Character.trim() : "";
+                
+                // 更新 UID 遮挡位置（如果已启用）
+                if (settings.enableUidMask) {
+                    const uidMaskX = parseInt(settings.uidMaskPositionX) || 0;
+                    const uidMaskY = parseInt(settings.uidMaskPositionY) || 0;
+                    Overlay.showUidMask(uidMaskX, uidMaskY);
+                    log.info(`✅ UID遮挡位置已更新: (${uidMaskX}, ${uidMaskY})`);
+                } else {
+                    Overlay.closeUidMask();
+                }
             } else {
                 // 用户取消或超时
                 if (!inputCharacterName) {
@@ -375,6 +451,8 @@ const Main = async () => {
                 unfairContractTerms: settings.unfairContractTerms || false,
                 checkVersionEnabled: settings.checkVersionEnabled !== false,
                 showSettingsOnStartup: settings.showSettingsOnStartup || false,
+                enableWikiDataFetch: settings.enableWikiDataFetch || false,
+                weaponName: settings.weaponName || "",
                 adventurePath: settings.adventurePath || "蒙德",
                 enableUidMask: settings.enableUidMask || false,
                 uidMaskPositionX: settings.uidMaskPositionX || "0",
@@ -458,10 +536,22 @@ const Main = async () => {
                     settings.unfairContractTerms = savedSettings.unfairContractTerms;
                     settings.checkVersionEnabled = savedSettings.checkVersionEnabled;
                     settings.showSettingsOnStartup = savedSettings.showSettingsOnStartup;
+                    settings.enableWikiDataFetch = savedSettings.enableWikiDataFetch;
+                    settings.weaponName = savedSettings.weaponName || "";
                     settings.adventurePath = savedSettings.adventurePath;
                     settings.enableUidMask = savedSettings.enableUidMask;
                     settings.uidMaskPositionX = savedSettings.uidMaskPositionX;
                     settings.uidMaskPositionY = savedSettings.uidMaskPositionY;
+                    
+                    // 更新 UID 遮挡位置（如果已启用）
+                    if (settings.enableUidMask) {
+                        const uidMaskX = parseInt(settings.uidMaskPositionX) || 0;
+                        const uidMaskY = parseInt(settings.uidMaskPositionY) || 0;
+                        Overlay.showUidMask(uidMaskX, uidMaskY);
+                        log.info(`✅ UID遮挡位置已更新: (${uidMaskX}, ${uidMaskY})`);
+                    } else {
+                        Overlay.closeUidMask();
+                    }
                     
                     // 更新 inputCharacterName 变量
                     inputCharacterName = savedSettings.Character ? savedSettings.Character.trim() : "";
@@ -490,37 +580,333 @@ const Main = async () => {
         // 检查霸王条款
         if (!settings.unfairContractTerms) {
             log.warn("{0}", Constants.ERROR_NO_README_MD);
-            
-            // 显示遮罩弹窗提示
-            const warningWinId = htmlMask.show("assets/warning-modal.html", "warning-modal");
-            htmlMask.setClickThrough(warningWinId, false); // 使窗口可交互
-            
-            // 等待用户关闭弹窗（最多15秒）
-            const startTime = Date.now();
-            const timeoutMs = 15000;
-            while (htmlMask.exists(warningWinId)) {
-                // 检查是否超时
-                if (Date.now() - startTime >= timeoutMs) {
-                    htmlMask.close(warningWinId);
-                    break;
-                }
-                
-                const msg = await htmlMask.receive(warningWinId, 1000);
-                if (msg) {
-                    const parsed = JSON.parse(msg);
-                    if (parsed.url === '/close') {
-                        htmlMask.close(warningWinId);
-                        break;
+
+            const userAgreed = await showErrorModal({
+                title: '未签署霸王条款',
+                message: '请先右键点击脚本名称选择 [ 打开脚本所在目录 ] 阅读README.md文档然后修改脚本自定义配置。',
+                timeout: 15,
+                showAgreeBtn: true,
+                onAgree: async () => {
+                    // 用户同意，保存设置到 user_settings.json
+                    try {
+                        const userSettingsPath = "data/user_settings.json";
+                        let userSettings = {};
+                        try {
+                            userSettings = JSON.parse(file.readTextSync(userSettingsPath));
+                        } catch (e) {
+                            // 文件不存在，使用空对象
+                        }
+                        userSettings.unfairContractTerms = true;
+                        file.writeTextSync(userSettingsPath, JSON.stringify(userSettings, null, 2));
+                        settings.unfairContractTerms = true;
+                        log.info("用户已同意霸王条款，设置已保存");
+                    } catch (saveError) {
+                        log.error(`保存霸王条款同意状态失败: ${saveError.message}`);
                     }
                 }
+            });
+
+            if (!userAgreed) {
+                throw new Error('未签署霸王条款，无法使用');
             }
-            
-            throw new Error('未签署霸王条款，无法使用');
         }
         
         // 加载已完成任务记录
         const completedTasks = TaskManager.loadCompletedTasks();
         log.info(`已加载 ${Object.keys(completedTasks).length} 个已完成任务记录`);
+        
+        // ========== Wiki 数据获取逻辑（如果启用）==========
+        if (settings.enableWikiDataFetch) {
+            log.info("📌 启用了从网页获取角色材料数据功能");
+            Overlay.updateStage('Wiki数据获取', '正在从B站Wiki获取材料信息...', 8);
+            
+            try {
+                const wikiMaterials = await WikiFetcher.getCharacterMaterials(inputCharacterName);
+                
+                if (wikiMaterials) {
+                    log.info(`📌 Wiki 数据获取结果: Boss=${wikiMaterials.bossName}, 天赋怪物=${wikiMaterials.talentMobName}, 区域特产=${wikiMaterials.specialtyName}, 天赋书=${wikiMaterials.talentBookName}`);
+                    
+                    // 自动填充配置（使用正确的字段名称）
+                    const configPath = Constants.CONFIG_PATH;
+                    let configData = [];
+                    try {
+                        configData = JSON.parse(file.readTextSync(configPath));
+                    } catch (e) {
+                        configData = [];
+                    }
+                    
+                    // 检查并填充 Boss 名称（字段名：bossMaterialName）
+                    if (wikiMaterials.bossName) {
+                        const bossConfigIndex = configData.findIndex(item => item.hasOwnProperty("bossMaterialName"));
+                        if (bossConfigIndex !== -1) {
+                            configData[bossConfigIndex]["bossMaterialName"] = wikiMaterials.bossName;
+                            log.info(`✅ 已更新 Boss 名称: ${wikiMaterials.bossName}`);
+                        } else {
+                            configData.push({ "bossMaterialName": wikiMaterials.bossName });
+                            log.info(`✅ 已添加 Boss 名称: ${wikiMaterials.bossName}`);
+                        }
+                    }
+                    
+                    // 检查并填充天赋怪物名称（字段名：Magic material0）
+                    if (wikiMaterials.talentMobName) {
+                        const mobConfigIndex = configData.findIndex(item => item.hasOwnProperty("Magic material0"));
+                        if (mobConfigIndex !== -1) {
+                            configData[mobConfigIndex]["Magic material0"] = wikiMaterials.talentMobName;
+                            log.info(`✅ 已更新天赋怪物名称: ${wikiMaterials.talentMobName}`);
+                        } else {
+                            // 需要添加到包含 LocalSpecialties 的对象中
+                            const localIndex = configData.findIndex(item => item.hasOwnProperty("LocalSpecialties"));
+                            if (localIndex !== -1) {
+                                configData[localIndex]["Magic material0"] = wikiMaterials.talentMobName;
+                                log.info(`✅ 已添加天赋怪物名称到现有配置: ${wikiMaterials.talentMobName}`);
+                            } else {
+                                configData.push({ "Magic material0": wikiMaterials.talentMobName });
+                                log.info(`✅ 已添加天赋怪物名称: ${wikiMaterials.talentMobName}`);
+                            }
+                        }
+                    }
+                    
+                    // 检查并填充区域特产名称（字段名：LocalSpecialties）
+                    if (wikiMaterials.specialtyName) {
+                        const specialtyConfigIndex = configData.findIndex(item => item.hasOwnProperty("LocalSpecialties"));
+                        if (specialtyConfigIndex !== -1) {
+                            configData[specialtyConfigIndex]["LocalSpecialties"] = wikiMaterials.specialtyName;
+                            log.info(`✅ 已更新区域特产名称: ${wikiMaterials.specialtyName}`);
+                        } else {
+                            configData.push({ "LocalSpecialties": wikiMaterials.specialtyName });
+                            log.info(`✅ 已添加区域特产名称: ${wikiMaterials.specialtyName}`);
+                        }
+                    }
+                    
+                    // 检查并填充天赋书名称（字段名：talentDomainName）
+                    if (wikiMaterials.talentBookName) {
+                        const talentBookConfigIndex = configData.findIndex(item => item.hasOwnProperty("talentDomainName"));
+                        if (talentBookConfigIndex !== -1) {
+                            configData[talentBookConfigIndex]["talentDomainName"] = wikiMaterials.talentBookName;
+                            log.info(`✅ 已更新天赋书名称: ${wikiMaterials.talentBookName}`);
+                        } else {
+                            configData.push({ "talentDomainName": wikiMaterials.talentBookName });
+                            log.info(`✅ 已添加天赋书名称: ${wikiMaterials.talentBookName}`);
+                        }
+                    }
+                    
+                    // 获取武器星级信息
+                    if (settings.weaponName) {
+                        const weaponStar = await WikiFetcher.getWeaponStar(settings.weaponName);
+                        if (weaponStar) {
+                            // 检查并填充武器星级（字段名：weaponStar）
+                            const weaponStarConfigIndex = configData.findIndex(item => item.hasOwnProperty("weaponStar"));
+                            if (weaponStarConfigIndex !== -1) {
+                                configData[weaponStarConfigIndex]["weaponStar"] = weaponStar;
+                                log.info(`✅ 已更新武器星级: ${weaponStar}`);
+                            } else {
+                                // 需要添加到包含 weaponLevel 的对象中
+                                const weaponLevelIndex = configData.findIndex(item => item.hasOwnProperty("weaponLevel"));
+                                if (weaponLevelIndex !== -1) {
+                                    configData[weaponLevelIndex]["weaponStar"] = weaponStar;
+                                    log.info(`✅ 已添加武器星级到现有配置: ${weaponStar}`);
+                                } else {
+                                    configData.push({ "weaponStar": weaponStar });
+                                    log.info(`✅ 已添加武器星级: ${weaponStar}`);
+                                }
+                            }
+                        }
+                        
+                        // 获取武器材料信息
+                        const weaponMaterials = await WikiFetcher.getWeaponMaterials(settings.weaponName);
+                        if (weaponMaterials) {
+                            log.info(`📌 武器材料获取结果: 秘境=${weaponMaterials.weaponDomainName}, 武器魔物1=${weaponMaterials.weapons1MobName}, 武器魔物2=${weaponMaterials.weapons2MobName}`);
+                            
+                            // 检查并填充武器秘境名称（字段名：weaponDomainName）
+                            if (weaponMaterials.weaponDomainName) {
+                                const weaponDomainConfigIndex = configData.findIndex(item => item.hasOwnProperty("weaponDomainName"));
+                                if (weaponDomainConfigIndex !== -1) {
+                                    configData[weaponDomainConfigIndex]["weaponDomainName"] = weaponMaterials.weaponDomainName;
+                                    log.info(`✅ 已更新武器秘境名称: ${weaponMaterials.weaponDomainName}`);
+                                } else {
+                                    configData.push({ "weaponDomainName": weaponMaterials.weaponDomainName });
+                                    log.info(`✅ 已添加武器秘境名称: ${weaponMaterials.weaponDomainName}`);
+                                }
+                            }
+                            
+                            // 检查并填充第一种武器魔物名称（字段名：Weapons1 material0）
+                            if (weaponMaterials.weapons1MobName) {
+                                const weapons1ConfigIndex = configData.findIndex(item => item.hasOwnProperty("Weapons1 material0"));
+                                if (weapons1ConfigIndex !== -1) {
+                                    configData[weapons1ConfigIndex]["Weapons1 material0"] = weaponMaterials.weapons1MobName;
+                                    log.info(`✅ 已更新第一种武器魔物名称: ${weaponMaterials.weapons1MobName}`);
+                                } else {
+                                    // 需要添加到包含 needamount1 stars3 的对象中
+                                    const needamount1Index = configData.findIndex(item => item.hasOwnProperty("needamount1 stars3"));
+                                    if (needamount1Index !== -1) {
+                                        configData[needamount1Index]["Weapons1 material0"] = weaponMaterials.weapons1MobName;
+                                        log.info(`✅ 已添加第一种武器魔物名称到现有配置: ${weaponMaterials.weapons1MobName}`);
+                                    } else {
+                                        configData.push({ "Weapons1 material0": weaponMaterials.weapons1MobName });
+                                        log.info(`✅ 已添加第一种武器魔物名称: ${weaponMaterials.weapons1MobName}`);
+                                    }
+                                }
+                            }
+                            
+                            // 检查并填充第二种武器魔物名称（字段名：Weapons2 material0）
+                            if (weaponMaterials.weapons2MobName) {
+                                const weapons2ConfigIndex = configData.findIndex(item => item.hasOwnProperty("Weapons2 material0"));
+                                if (weapons2ConfigIndex !== -1) {
+                                    configData[weapons2ConfigIndex]["Weapons2 material0"] = weaponMaterials.weapons2MobName;
+                                    log.info(`✅ 已更新第二种武器魔物名称: ${weaponMaterials.weapons2MobName}`);
+                                } else {
+                                    // 需要添加到包含 needamount2 stars3 的对象中
+                                    const needamount2Index = configData.findIndex(item => item.hasOwnProperty("needamount2 stars3"));
+                                    if (needamount2Index !== -1) {
+                                        configData[needamount2Index]["Weapons2 material0"] = weaponMaterials.weapons2MobName;
+                                        log.info(`✅ 已添加第二种武器魔物名称到现有配置: ${weaponMaterials.weapons2MobName}`);
+                                    } else {
+                                        configData.push({ "Weapons2 material0": weaponMaterials.weapons2MobName });
+                                        log.info(`✅ 已添加第二种武器魔物名称: ${weaponMaterials.weapons2MobName}`);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // ========== Wiki 模式默认配置 ==========
+                    // 由于 Wiki 模式无法识别角色，需要添加默认配置
+                    log.info("📌 Wiki 模式：添加默认材料数量配置");
+                    
+                    // 默认天赋书数量：9-63-114
+                    const talentBookDefaultIndex = configData.findIndex(item => item.hasOwnProperty("talentBookRequireCounts0"));
+                    if (talentBookDefaultIndex === -1) {
+                        configData.push({ "talentBookRequireCounts0": "9-63-114" });
+                        log.info(`✅ 已添加默认天赋书数量配置: 9-63-114`);
+                    }
+                    
+                    // 默认武器材料数量：5-14-12-5
+                    const weaponMaterialDefaultIndex = configData.findIndex(item => item.hasOwnProperty("weaponMaterialRequireCounts0"));
+                    if (weaponMaterialDefaultIndex === -1) {
+                        configData.push({ "weaponMaterialRequireCounts0": "5-14-12-5" });
+                        log.info(`✅ 已添加默认武器材料数量配置: 5-14-12-5`);
+                    }
+                    
+                    // 默认首领材料数量：46
+                    const bossMaterialDefaultIndex = configData.findIndex(item => item.hasOwnProperty("bossRequireCounts0"));
+                    if (bossMaterialDefaultIndex === -1) {
+                        configData.push({ "bossRequireCounts0": 46 });
+                        log.info(`✅ 已添加默认首领材料数量配置: 46`);
+                    }
+                    
+                    // 默认地方特产需求量：168（Wiki模式下，如果值为0也需要更新为默认值）
+                    const needLocalAmountIndex = configData.findIndex(item => item.hasOwnProperty("needLocalAmount"));
+                    const needLocalAmountValue = needLocalAmountIndex !== -1 ? configData[needLocalAmountIndex]["needLocalAmount"] : 0;
+                    if (needLocalAmountIndex === -1 || Number(needLocalAmountValue) === 0) {
+                        // 查找包含 LocalSpecialties 的对象
+                        const localSpecialtiesIndex = configData.findIndex(item => item.hasOwnProperty("LocalSpecialties"));
+                        
+                        // 如果 needLocalAmount 存在于其他对象中且值为0，先删除它
+                        if (needLocalAmountIndex !== -1 && Number(needLocalAmountValue) === 0) {
+                            delete configData[needLocalAmountIndex]["needLocalAmount"];
+                        }
+                        
+                        // 添加到包含 LocalSpecialties 的对象中
+                        if (localSpecialtiesIndex !== -1) {
+                            configData[localSpecialtiesIndex]["needLocalAmount"] = 168;
+                            log.info(`✅ 已设置地方特产需求量配置: 168`);
+                        } else {
+                            configData.push({ "needLocalAmount": 168 });
+                            log.info(`✅ 已添加地方特产需求量配置: 168`);
+                        }
+                    }
+                    
+                    // 默认敌人与魔物需求量：100（Wiki模式下，如果值为0也需要更新为默认值）
+                    const needMonsterStar3Index = configData.findIndex(item => item.hasOwnProperty("needMonsterStar3"));
+                    const needMonsterStar3Value = needMonsterStar3Index !== -1 ? configData[needMonsterStar3Index]["needMonsterStar3"] : 0;
+                    if (needMonsterStar3Index === -1 || Number(needMonsterStar3Value) === 0) {
+                        // 查找包含 Magic material0 的对象
+                        const magicMaterialIndex = configData.findIndex(item => item.hasOwnProperty("Magic material0"));
+                        
+                        // 如果 needMonsterStar3 存在于其他对象中且值为0，先删除它
+                        if (needMonsterStar3Index !== -1 && Number(needMonsterStar3Value) === 0) {
+                            delete configData[needMonsterStar3Index]["needMonsterStar3"];
+                        }
+                        
+                        // 添加到包含 Magic material0 的对象中
+                        if (magicMaterialIndex !== -1) {
+                            configData[magicMaterialIndex]["needMonsterStar3"] = 100;
+                            log.info(`✅ 已设置敌人与魔物需求量配置: 100`);
+                        } else {
+                            configData.push({ "needMonsterStar3": 100 });
+                            log.info(`✅ 已添加敌人与魔物需求量配置: 100`);
+                        }
+                    }
+                    
+                    // 默认武器1材料需求量：100（Wiki模式下，如果值为0也需要更新为默认值）
+                    const needamount1Index = configData.findIndex(item => item.hasOwnProperty("needamount1 stars3"));
+                    const needamount1Value = needamount1Index !== -1 ? configData[needamount1Index]["needamount1 stars3"] : 0;
+                    if (needamount1Index === -1 || Number(needamount1Value) === 0) {
+                        // 查找包含 Weapons1 material0 的对象
+                        const weapons1Index = configData.findIndex(item => item.hasOwnProperty("Weapons1 material0"));
+                        
+                        // 如果 needamount1 stars3 存在于其他对象中且值为0，先删除它
+                        if (needamount1Index !== -1 && Number(needamount1Value) === 0) {
+                            delete configData[needamount1Index]["needamount1 stars3"];
+                        }
+                        
+                        // 添加到包含 Weapons1 material0 的对象中
+                        if (weapons1Index !== -1) {
+                            configData[weapons1Index]["needamount1 stars3"] = 100;
+                            log.info(`✅ 已设置武器1材料需求量配置: 100`);
+                        } else {
+                            configData.push({ "needamount1 stars3": 100 });
+                            log.info(`✅ 已添加武器1材料需求量配置: 100`);
+                        }
+                    }
+                    
+                    // 默认武器2材料需求量：100（Wiki模式下，如果值为0也需要更新为默认值）
+                    const needamount2Index = configData.findIndex(item => item.hasOwnProperty("needamount2 stars3"));
+                    const needamount2Value = needamount2Index !== -1 ? configData[needamount2Index]["needamount2 stars3"] : 0;
+                    if (needamount2Index === -1 || Number(needamount2Value) === 0) {
+                        // 查找包含 Weapons2 material0 的对象
+                        const weapons2Index = configData.findIndex(item => item.hasOwnProperty("Weapons2 material0"));
+                        
+                        // 如果 needamount2 stars3 存在于其他对象中且值为0，先删除它
+                        if (needamount2Index !== -1 && Number(needamount2Value) === 0) {
+                            delete configData[needamount2Index]["needamount2 stars3"];
+                        }
+                        
+                        // 添加到包含 Weapons2 material0 的对象中
+                        if (weapons2Index !== -1) {
+                            configData[weapons2Index]["needamount2 stars3"] = 100;
+                            log.info(`✅ 已设置武器2材料需求量配置: 100`);
+                        } else {
+                            configData.push({ "needamount2 stars3": 100 });
+                            log.info(`✅ 已添加武器2材料需求量配置: 100`);
+                        }
+                    }
+                    
+                    // 保存更新后的配置
+                    file.writeTextSync(configPath, JSON.stringify(configData, null, 2));
+                    log.info("✅ Wiki 材料数据已保存到配置文件");
+                } else {
+                    log.warn("⚠️ Wiki 数据获取失败，将使用现有配置继续运行");
+                }
+            } catch (wikiError) {
+                // 检查是否是我们抛出的错误（角色/武器/材料不存在等）
+                if (wikiError.message.includes("名字错误") || wikiError.message.includes("名称错误") || wikiError.message.includes("不存在") || wikiError.message.includes("获取失败")) {
+                    log.error(`❌ ${wikiError.message}`);
+
+                    // 显示错误弹窗并结束脚本
+                    await showErrorModal({
+                        title: 'Wiki数据获取失败',
+                        message: wikiError.message,
+                        timeout: 20
+                    });
+
+                    throw new Error(wikiError.message);
+                }
+
+                log.error(`❌ Wiki 数据获取出错: ${wikiError.message}`);
+                log.info("将使用现有配置继续运行");
+            }
+        }
         
         // 封装从config.json读取配置的通用函数
         function getConfigValue(key) {
@@ -539,13 +925,66 @@ const Main = async () => {
         }
         
         // ========== 第一步：执行角色识别与材料计算流程 ==========
-        log.info("📌 开始执行角色识别与材料计算流程...");
-        Overlay.updateStage('角色识别与材料计算', '正在识别角色材料信息...', 10);
-        const recognitionSuccess = await Character.findCharacterAndGetLevel();
-       if (!recognitionSuccess) {
-            log.error("❌ 角色识别失败，终止主流程");
-            notification.error("角色识别失败，请检查角色是否正确配置");
-            return;
+        // 如果启用了 Wiki 数据获取，跳过角色识别流程
+        if (settings.enableWikiDataFetch) {
+            log.info("📌 启用了 Wiki 数据获取，跳过角色识别流程");
+            log.info("📌 当前拥有材料默认为零");
+            Overlay.updateStage('Wiki模式', '跳过角色识别，材料默认为零', 15);
+
+            // Wiki模式下设置默认值
+            try {
+                const configContent = file.readTextSync(Constants.CONFIG_PATH);
+                let configArray = JSON.parse(configContent);
+                if (!Array.isArray(configArray)) {
+                    configArray = [];
+                }
+
+                // 设置角色等级默认值为20
+                const levelIndex = configArray.findIndex(item => item.hasOwnProperty("characterLevel"));
+                if (levelIndex !== -1) {
+                    configArray[levelIndex] = { "characterLevel": 20 };
+                } else {
+                    configArray.push({ "characterLevel": 20 });
+                }
+
+                // 设置角色突破状态默认值为"20级未突破"
+                const breakIndex = configArray.findIndex(item => item.hasOwnProperty("characterBreak"));
+                if (breakIndex !== -1) {
+                    configArray[breakIndex] = { "characterBreak": "20级未突破" };
+                } else {
+                    configArray.push({ "characterBreak": "20级未突破" });
+                }
+
+                // 设置天赋等级默认值为"1-1-1"
+                const talentIndex = configArray.findIndex(item => item.hasOwnProperty("talentLevels"));
+                if (talentIndex !== -1) {
+                    configArray[talentIndex] = { "talentLevels": "1-1-1" };
+                } else {
+                    configArray.push({ "talentLevels": "1-1-1" });
+                }
+
+                // 设置武器等级默认值为"20级未突破"
+                const weaponLevelIndex = configArray.findIndex(item => item.hasOwnProperty("weaponLevel"));
+                if (weaponLevelIndex !== -1) {
+                    configArray[weaponLevelIndex] = { "weaponStar": configArray[weaponLevelIndex].weaponStar || "五星", "weaponLevel": "20级未突破" };
+                } else {
+                    configArray.push({ "weaponStar": "五星", "weaponLevel": "20级未突破" });
+                }
+
+                file.writeTextSync(Constants.CONFIG_PATH, JSON.stringify(configArray, null, 2));
+                log.info(`✅ Wiki模式默认值已写入配置文件`);
+            } catch (e) {
+                log.warn(`写入Wiki模式默认值失败: ${e.message}`);
+            }
+        } else {
+            log.info("📌 开始执行角色识别与材料计算流程...");
+            Overlay.updateStage('角色识别与材料计算', '正在识别角色材料信息...', 10);
+            const recognitionSuccess = await Character.findCharacterAndGetLevel();
+            if (!recognitionSuccess) {
+                log.error("❌ 角色识别失败，终止主流程");
+                notification.error("角色识别失败，请检查角色是否正确配置");
+                return;
+            }
         }
         
         // ============== 材料刷取逻辑开始 ==============
@@ -1062,8 +1501,27 @@ async function executeMaterialCollection(options) {
     log.info(`\n========== 开始处理${materialType} ==========`);
     
     // 读取当前需求量
-    const config = Utils.readJson(Constants.CONFIG_PATH);
-    const currentAmount = Number(config[configKey]) || 0;
+    // 如果启用了 Wiki 数据获取，使用默认需求量
+    let currentAmount;
+    if (settings.enableWikiDataFetch) {
+        // Wiki 模式下使用默认需求量
+        if (type === 'local') {
+            currentAmount = 168; // 地方特产默认需求量
+            log.info(`[${materialType}] Wiki 模式已启用，地方特产默认需求量为168`);
+        } else if (type === 'magic') {
+            currentAmount = 100; // 敌人与魔物默认需求量
+            log.info(`[${materialType}] Wiki 模式已启用，敌人与魔物默认需求量为100`);
+        } else if (type === 'boss') {
+            currentAmount = 46; // Boss 材料默认需求量
+            log.info(`[${materialType}] Wiki 模式已启用，Boss 材料默认需求量为46`);
+        } else {
+            currentAmount = 0;
+            log.info(`[${materialType}] Wiki 模式已启用，材料数量默认为零`);
+        }
+    } else {
+        const config = Utils.readJson(Constants.CONFIG_PATH);
+        currentAmount = Number(config[configKey]) || 0;
+    }
     
     if (currentAmount <= 0) {
         log.info(`[${materialType}] 需求数量为0，跳过执行`);
@@ -1308,8 +1766,23 @@ async function executeMonsterBatch(allScripts, configKey, materialType, currentU
     Overlay.updateStage(materialType, '准备收集...', 60);
 
     while (remainingScripts.length > 0) {
-        const config = Utils.readJson(Constants.CONFIG_PATH);
-        let currentAmount = Number(config[configKey]) || 0;
+        // 如果启用了 Wiki 数据获取，使用默认需求量
+        let currentAmount;
+        if (settings.enableWikiDataFetch) {
+            // Wiki 模式下使用默认需求量
+            if (type === 'local') {
+                currentAmount = 168; // 地方特产默认需求量
+            } else if (type === 'magic') {
+                currentAmount = 100; // 敌人与魔物默认需求量
+            } else if (type === 'boss') {
+                currentAmount = 46; // Boss 材料默认需求量
+            } else {
+                currentAmount = 0;
+            }
+        } else {
+            const config = Utils.readJson(Constants.CONFIG_PATH);
+            currentAmount = Number(config[configKey]) || 0;
+        }
         
         log.info(`\n📊 [${materialType}] 当前材料需求量：${currentAmount}，剩余脚本数：${remainingScripts.length}`);
         
@@ -1384,6 +1857,13 @@ async function executeMonsterBatch(allScripts, configKey, materialType, currentU
 // 执行角色识别
 async function performCharacterRecognition(materialType, recognitionType = "all") {
     log.info(`📌 开始执行${materialType}的角色识别与材料计算流程（识别类型：${recognitionType}）...`);
+    
+    // Wiki 模式启用时跳过角色识别
+    if (settings.enableWikiDataFetch) {
+        log.info(`[${materialType}] Wiki 模式已启用，跳过角色识别流程`);
+        return;
+    }
+    
     try {
         await Character.findCharacterAndGetLevel(recognitionType);
         log.info(`✅ ${materialType}角色识别与材料更新完成`);
