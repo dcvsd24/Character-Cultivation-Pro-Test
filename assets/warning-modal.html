@@ -47,6 +47,12 @@
             backdrop-filter: blur(10px);
             text-align: center;
             transform: translate(-80px, -50px);
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .modal-box.visible {
+            opacity: 1;
         }
 
         /* 画框线条装饰 */
@@ -116,6 +122,34 @@
             transform: translateY(0);
         }
 
+        .btn-group {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+        }
+
+        .agree-btn {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: #fff;
+            border: none;
+            padding: 12px 32px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .agree-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+        }
+
+        .agree-btn:active {
+            transform: translateY(0);
+        }
+
         .countdown-text {
             font-size: 14px;
             color: #f59e0b;
@@ -127,15 +161,18 @@
     <div class="modal-overlay">
         <div class="modal-box">
             <div class="warning-icon">⚠️</div>
-            <div class="modal-title">未签署霸王条款</div>
-            <div class="modal-message">请先右键点击脚本名称选择 [ 打开脚本所在目录 ] 阅读README.md文档然后修改脚本自定义配置。</div>
-            <button class="close-btn" id="closeBtn">关闭</button>
-            <div class="countdown-text" id="countdownText">15秒后自动关闭</div>
+            <div class="modal-title" id="modalTitle">未签署霸王条款</div>
+            <div class="modal-message" id="modalMessage">请先右键点击脚本名称选择 [ 打开脚本所在目录 ] 阅读README.md文档然后修改脚本自定义配置。</div>
+            <div class="btn-group">
+                <button class="agree-btn" id="agreeBtn">同意</button>
+                <button class="close-btn" id="closeBtn">关闭</button>
+            </div>
+            <div class="countdown-text" id="countdownText">20秒后自动关闭</div>
         </div>
     </div>
 
     <script>
-        let countdown = 15;
+        let countdown = 20;
         let countdownInterval = null;
         let isClosed = false;
 
@@ -162,18 +199,73 @@
             }
         }
 
+        // 同意并关闭
+        function agreeAndClose() {
+            if (isClosed) return;
+            isClosed = true;
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+            // 通知 JS 端用户同意
+            if (window.htmlMask) {
+                window.htmlMask.request('/agree', '{}');
+            }
+        }
+
         // 关闭按钮点击事件
         document.getElementById('closeBtn').addEventListener('click', closeWindow);
+
+        // 同意按钮点击事件
+        document.getElementById('agreeBtn').addEventListener('click', agreeAndClose);
+
+        // 初始化弹窗内容
+        function initModalContent(config) {
+            // 设置标题
+            if (config.title) {
+                document.getElementById('modalTitle').textContent = config.title;
+            }
+            // 设置消息
+            if (config.message) {
+                document.getElementById('modalMessage').textContent = config.message;
+            }
+            // 设置倒计时时长
+            if (config.timeout) {
+                countdown = config.timeout;
+                document.getElementById('countdownText').textContent = countdown + '秒后自动关闭';
+            }
+            // 是否显示同意按钮
+            if (config.showAgreeBtn) {
+                document.getElementById('agreeBtn').style.display = 'inline-block';
+            } else {
+                document.getElementById('agreeBtn').style.display = 'none';
+            }
+            // 显示弹窗
+            document.querySelector('.modal-box').classList.add('visible');
+        }
 
         // 初始化
         function init() {
             // 启动倒计时
             countdownInterval = setInterval(updateCountdown, 1000);
 
+            // 设置超时机制：如果 3 秒内没有收到初始化数据，就显示弹窗（使用默认内容）
+            const showTimeout = setTimeout(() => {
+                document.querySelector('.modal-box').classList.add('visible');
+            }, 3000);
+
             if (window.htmlMask) {
                 // 设置消息回调
                 window.htmlMask.onMessage = function(msg) {
-                    // 可以接收来自 JS 的消息
+                    try {
+                        const parsed = typeof msg === 'string' ? JSON.parse(msg) : msg;
+                        if (parsed.url === '/initError') {
+                            clearTimeout(showTimeout); // 收到初始化数据，取消超时显示
+                            initModalContent(parsed.data);
+                        }
+                    } catch (e) {
+                        console.error('消息解析失败:', e);
+                    }
                 };
                 // 通知脚本就绪
                 try {
@@ -181,6 +273,10 @@
                 } catch (e) {
                     console.error('ready 请求异常:', e);
                 }
+            } else {
+                // 如果 htmlMask 不存在，立即显示弹窗
+                clearTimeout(showTimeout);
+                document.querySelector('.modal-box').classList.add('visible');
             }
         }
 
