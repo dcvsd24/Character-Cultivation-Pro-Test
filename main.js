@@ -621,10 +621,11 @@ const Main = async () => {
             Overlay.updateStage('Wiki数据获取', '正在从B站Wiki获取材料信息...', 8);
             
             try {
-                const wikiMaterials = await WikiFetcher.getCharacterMaterials(inputCharacterName);
+                // 分批次获取策略：开头只获取材料名称，不获取详细来源
+                const wikiMaterials = await WikiFetcher.getCharacterMaterialsFast(inputCharacterName);
                 
                 if (wikiMaterials) {
-                    log.info(`📌 Wiki 数据获取结果: Boss=${wikiMaterials.bossName}, 天赋怪物=${wikiMaterials.talentMobName}, 区域特产=${wikiMaterials.specialtyName}, 天赋书=${wikiMaterials.talentBookName}`);
+                    log.info(`📌 Wiki 材料名称获取结果: Boss材料=${wikiMaterials.bossMaterialName}, 天赋怪物材料=${wikiMaterials.talentMobMaterialName}, 区域特产=${wikiMaterials.specialtyName}, 天赋书=${wikiMaterials.talentBookName}`);
                     
                     // 自动填充配置（使用正确的字段名称）
                     const configPath = Constants.CONFIG_PATH;
@@ -635,34 +636,37 @@ const Main = async () => {
                         configData = [];
                     }
                     
-                    // 检查并填充 Boss 名称（字段名：bossMaterialName）
-                    if (wikiMaterials.bossName) {
-                        const bossConfigIndex = configData.findIndex(item => item.hasOwnProperty("bossMaterialName"));
-                        if (bossConfigIndex !== -1) {
-                            configData[bossConfigIndex]["bossMaterialName"] = wikiMaterials.bossName;
-                            log.info(`✅ 已更新 Boss 名称: ${wikiMaterials.bossName}`);
+                    // 检查并填充 Boss 材料名称（字段名：bossMaterialNameRaw，用于延迟获取Boss名称）
+                    if (wikiMaterials.bossMaterialName) {
+                        const bossMaterialConfigIndex = configData.findIndex(item => item.hasOwnProperty("bossMaterialNameRaw"));
+                        if (bossMaterialConfigIndex !== -1) {
+                            configData[bossMaterialConfigIndex]["bossMaterialNameRaw"] = wikiMaterials.bossMaterialName;
+                            log.info(`✅ 已更新 Boss 材料名称: ${wikiMaterials.bossMaterialName}`);
                         } else {
-                            configData.push({ "bossMaterialName": wikiMaterials.bossName });
-                            log.info(`✅ 已添加 Boss 名称: ${wikiMaterials.bossName}`);
+                            configData.push({ "bossMaterialNameRaw": wikiMaterials.bossMaterialName });
+                            log.info(`✅ 已添加 Boss 材料名称: ${wikiMaterials.bossMaterialName}`);
                         }
                     }
                     
-                    // 检查并填充天赋怪物名称（字段名：Magic material0）
-                    if (wikiMaterials.talentMobName) {
-                        const mobConfigIndex = configData.findIndex(item => item.hasOwnProperty("Magic material0"));
-                        if (mobConfigIndex !== -1) {
-                            configData[mobConfigIndex]["Magic material0"] = wikiMaterials.talentMobName;
-                            log.info(`✅ 已更新天赋怪物名称: ${wikiMaterials.talentMobName}`);
+                    // 检查并填充天赋怪物材料名称（字段名：talentMobMaterialNameRaw，用于延迟获取天赋怪物名称）
+                    if (wikiMaterials.talentMobMaterialName) {
+                        const talentMobMaterialConfigIndex = configData.findIndex(item => item.hasOwnProperty("talentMobMaterialNameRaw"));
+                        if (talentMobMaterialConfigIndex !== -1) {
+                            configData[talentMobMaterialConfigIndex]["talentMobMaterialNameRaw"] = wikiMaterials.talentMobMaterialName;
+                            log.info(`✅ 已更新天赋怪物材料名称: ${wikiMaterials.talentMobMaterialName}`);
                         } else {
-                            // 需要添加到包含 LocalSpecialties 的对象中
-                            const localIndex = configData.findIndex(item => item.hasOwnProperty("LocalSpecialties"));
-                            if (localIndex !== -1) {
-                                configData[localIndex]["Magic material0"] = wikiMaterials.talentMobName;
-                                log.info(`✅ 已添加天赋怪物名称到现有配置: ${wikiMaterials.talentMobName}`);
-                            } else {
-                                configData.push({ "Magic material0": wikiMaterials.talentMobName });
-                                log.info(`✅ 已添加天赋怪物名称: ${wikiMaterials.talentMobName}`);
-                            }
+                            configData.push({ "talentMobMaterialNameRaw": wikiMaterials.talentMobMaterialName });
+                            log.info(`✅ 已添加天赋怪物材料名称: ${wikiMaterials.talentMobMaterialName}`);
+                        }
+                        
+                        // 同时将天赋怪物材料名称作为临时值写入 Magic material0（后续采集前会更新为真正的怪物名称）
+                        const magicMaterialIndex = configData.findIndex(item => item.hasOwnProperty("Magic material0"));
+                        if (magicMaterialIndex !== -1) {
+                            configData[magicMaterialIndex]["Magic material0"] = wikiMaterials.talentMobMaterialName;
+                            log.info(`✅ 已写入天赋怪物材料名称作为临时关键词: ${wikiMaterials.talentMobMaterialName}`);
+                        } else {
+                            configData.push({ "Magic material0": wikiMaterials.talentMobMaterialName });
+                            log.info(`✅ 已添加天赋怪物材料名称作为临时关键词: ${wikiMaterials.talentMobMaterialName}`);
                         }
                     }
                     
@@ -690,80 +694,81 @@ const Main = async () => {
                         }
                     }
                     
-                    // 获取武器星级信息
-                    if (settings.weaponName) {
-                        const weaponStar = await WikiFetcher.getWeaponStar(settings.weaponName);
-                        if (weaponStar) {
-                            // 检查并填充武器星级（字段名：weaponStar）
-                            const weaponStarConfigIndex = configData.findIndex(item => item.hasOwnProperty("weaponStar"));
-                            if (weaponStarConfigIndex !== -1) {
-                                configData[weaponStarConfigIndex]["weaponStar"] = weaponStar;
-                                log.info(`✅ 已更新武器星级: ${weaponStar}`);
-                            } else {
-                                // 需要添加到包含 weaponLevel 的对象中
-                                const weaponLevelIndex = configData.findIndex(item => item.hasOwnProperty("weaponLevel"));
-                                if (weaponLevelIndex !== -1) {
-                                    configData[weaponLevelIndex]["weaponStar"] = weaponStar;
-                                    log.info(`✅ 已添加武器星级到现有配置: ${weaponStar}`);
+                    // 获取武器信息（只有武器名称不为空时才获取）- 快速模式，只获取材料名称
+                    if (settings.weaponName && settings.weaponName.trim() !== "") {
+                        const weaponInfo = await WikiFetcher.getWeaponInfoFast(settings.weaponName);
+                        if (weaponInfo) {
+                            // 处理武器星级
+                            if (weaponInfo.starLevel) {
+                                const weaponStarConfigIndex = configData.findIndex(item => item.hasOwnProperty("weaponStar"));
+                                if (weaponStarConfigIndex !== -1) {
+                                    configData[weaponStarConfigIndex]["weaponStar"] = weaponInfo.starLevel;
+                                    log.info(`✅ 已更新武器星级: ${weaponInfo.starLevel}`);
                                 } else {
-                                    configData.push({ "weaponStar": weaponStar });
-                                    log.info(`✅ 已添加武器星级: ${weaponStar}`);
+                                    const weaponLevelIndex = configData.findIndex(item => item.hasOwnProperty("weaponLevel"));
+                                    if (weaponLevelIndex !== -1) {
+                                        configData[weaponLevelIndex]["weaponStar"] = weaponInfo.starLevel;
+                                        log.info(`✅ 已添加武器星级到现有配置: ${weaponInfo.starLevel}`);
+                                    } else {
+                                        configData.push({ "weaponStar": weaponInfo.starLevel });
+                                        log.info(`✅ 已添加武器星级: ${weaponInfo.starLevel}`);
+                                    }
                                 }
                             }
-                        }
-                        
-                        // 获取武器材料信息
-                        const weaponMaterials = await WikiFetcher.getWeaponMaterials(settings.weaponName);
-                        if (weaponMaterials) {
-                            log.info(`📌 武器材料获取结果: 秘境=${weaponMaterials.weaponDomainName}, 武器魔物1=${weaponMaterials.weapons1MobName}, 武器魔物2=${weaponMaterials.weapons2MobName}`);
                             
-                            // 检查并填充武器秘境名称（字段名：weaponDomainName）
-                            if (weaponMaterials.weaponDomainName) {
+                            // 处理武器秘境名称
+                            if (weaponInfo.weaponDomainName) {
                                 const weaponDomainConfigIndex = configData.findIndex(item => item.hasOwnProperty("weaponDomainName"));
                                 if (weaponDomainConfigIndex !== -1) {
-                                    configData[weaponDomainConfigIndex]["weaponDomainName"] = weaponMaterials.weaponDomainName;
-                                    log.info(`✅ 已更新武器秘境名称: ${weaponMaterials.weaponDomainName}`);
+                                    configData[weaponDomainConfigIndex]["weaponDomainName"] = weaponInfo.weaponDomainName;
+                                    log.info(`✅ 已更新武器秘境名称: ${weaponInfo.weaponDomainName}`);
                                 } else {
-                                    configData.push({ "weaponDomainName": weaponMaterials.weaponDomainName });
-                                    log.info(`✅ 已添加武器秘境名称: ${weaponMaterials.weaponDomainName}`);
+                                    configData.push({ "weaponDomainName": weaponInfo.weaponDomainName });
+                                    log.info(`✅ 已添加武器秘境名称: ${weaponInfo.weaponDomainName}`);
                                 }
                             }
                             
-                            // 检查并填充第一种武器魔物名称（字段名：Weapons1 material0）
-                            if (weaponMaterials.weapons1MobName) {
-                                const weapons1ConfigIndex = configData.findIndex(item => item.hasOwnProperty("Weapons1 material0"));
-                                if (weapons1ConfigIndex !== -1) {
-                                    configData[weapons1ConfigIndex]["Weapons1 material0"] = weaponMaterials.weapons1MobName;
-                                    log.info(`✅ 已更新第一种武器魔物名称: ${weaponMaterials.weapons1MobName}`);
+                            // 保存武器1材料名称（用于延迟获取武器魔物名称）
+                            if (weaponInfo.weapons1MaterialName) {
+                                const weapons1MaterialConfigIndex = configData.findIndex(item => item.hasOwnProperty("Weapons1 materialNameRaw"));
+                                if (weapons1MaterialConfigIndex !== -1) {
+                                    configData[weapons1MaterialConfigIndex]["Weapons1 materialNameRaw"] = weaponInfo.weapons1MaterialName;
+                                    log.info(`✅ 已更新武器1材料名称: ${weaponInfo.weapons1MaterialName}`);
                                 } else {
-                                    // 需要添加到包含 needamount1 stars3 的对象中
-                                    const needamount1Index = configData.findIndex(item => item.hasOwnProperty("needamount1 stars3"));
-                                    if (needamount1Index !== -1) {
-                                        configData[needamount1Index]["Weapons1 material0"] = weaponMaterials.weapons1MobName;
-                                        log.info(`✅ 已添加第一种武器魔物名称到现有配置: ${weaponMaterials.weapons1MobName}`);
-                                    } else {
-                                        configData.push({ "Weapons1 material0": weaponMaterials.weapons1MobName });
-                                        log.info(`✅ 已添加第一种武器魔物名称: ${weaponMaterials.weapons1MobName}`);
-                                    }
+                                    configData.push({ "Weapons1 materialNameRaw": weaponInfo.weapons1MaterialName });
+                                    log.info(`✅ 已添加武器1材料名称: ${weaponInfo.weapons1MaterialName}`);
+                                }
+                                
+                                // 同时将武器1材料名称作为临时值写入 Weapons1 material0（后续采集前会更新为真正的魔物名称）
+                                const weapons1MobIndex = configData.findIndex(item => item.hasOwnProperty("Weapons1 material0"));
+                                if (weapons1MobIndex !== -1) {
+                                    configData[weapons1MobIndex]["Weapons1 material0"] = weaponInfo.weapons1MaterialName;
+                                    log.info(`✅ 已写入武器1材料名称作为临时关键词: ${weaponInfo.weapons1MaterialName}`);
+                                } else {
+                                    configData.push({ "Weapons1 material0": weaponInfo.weapons1MaterialName });
+                                    log.info(`✅ 已添加武器1材料名称作为临时关键词: ${weaponInfo.weapons1MaterialName}`);
                                 }
                             }
                             
-                            // 检查并填充第二种武器魔物名称（字段名：Weapons2 material0）
-                            if (weaponMaterials.weapons2MobName) {
-                                const weapons2ConfigIndex = configData.findIndex(item => item.hasOwnProperty("Weapons2 material0"));
-                                if (weapons2ConfigIndex !== -1) {
-                                    configData[weapons2ConfigIndex]["Weapons2 material0"] = weaponMaterials.weapons2MobName;
-                                    log.info(`✅ 已更新第二种武器魔物名称: ${weaponMaterials.weapons2MobName}`);
+                            // 保存武器2材料名称（用于延迟获取武器魔物名称）
+                            if (weaponInfo.weapons2MaterialName) {
+                                const weapons2MaterialConfigIndex = configData.findIndex(item => item.hasOwnProperty("Weapons2 materialNameRaw"));
+                                if (weapons2MaterialConfigIndex !== -1) {
+                                    configData[weapons2MaterialConfigIndex]["Weapons2 materialNameRaw"] = weaponInfo.weapons2MaterialName;
+                                    log.info(`✅ 已更新武器2材料名称: ${weaponInfo.weapons2MaterialName}`);
                                 } else {
-                                    // 需要添加到包含 needamount2 stars3 的对象中
-                                    const needamount2Index = configData.findIndex(item => item.hasOwnProperty("needamount2 stars3"));
-                                    if (needamount2Index !== -1) {
-                                        configData[needamount2Index]["Weapons2 material0"] = weaponMaterials.weapons2MobName;
-                                        log.info(`✅ 已添加第二种武器魔物名称到现有配置: ${weaponMaterials.weapons2MobName}`);
-                                    } else {
-                                        configData.push({ "Weapons2 material0": weaponMaterials.weapons2MobName });
-                                        log.info(`✅ 已添加第二种武器魔物名称: ${weaponMaterials.weapons2MobName}`);
-                                    }
+                                    configData.push({ "Weapons2 materialNameRaw": weaponInfo.weapons2MaterialName });
+                                    log.info(`✅ 已添加武器2材料名称: ${weaponInfo.weapons2MaterialName}`);
+                                }
+                                
+                                // 同时将武器2材料名称作为临时值写入 Weapons2 material0（后续采集前会更新为真正的魔物名称）
+                                const weapons2MobIndex = configData.findIndex(item => item.hasOwnProperty("Weapons2 material0"));
+                                if (weapons2MobIndex !== -1) {
+                                    configData[weapons2MobIndex]["Weapons2 material0"] = weaponInfo.weapons2MaterialName;
+                                    log.info(`✅ 已写入武器2材料名称作为临时关键词: ${weaponInfo.weapons2MaterialName}`);
+                                } else {
+                                    configData.push({ "Weapons2 material0": weaponInfo.weapons2MaterialName });
+                                    log.info(`✅ 已添加武器2材料名称作为临时关键词: ${weaponInfo.weapons2MaterialName}`);
                                 }
                             }
                         }
@@ -773,113 +778,137 @@ const Main = async () => {
                     // 由于 Wiki 模式无法识别角色，需要添加默认配置
                     log.info("📌 Wiki 模式：添加默认材料数量配置");
                     
-                    // 默认天赋书数量：9-63-114
+                    // 默认天赋书数量：9-63-114（Wiki模式下，如果值为0也需要更新为默认值）
                     const talentBookDefaultIndex = configData.findIndex(item => item.hasOwnProperty("talentBookRequireCounts0"));
-                    if (talentBookDefaultIndex === -1) {
-                        configData.push({ "talentBookRequireCounts0": "9-63-114" });
-                        log.info(`✅ 已添加默认天赋书数量配置: 9-63-114`);
+                    const talentBookDefaultValue = talentBookDefaultIndex !== -1 ? configData[talentBookDefaultIndex]["talentBookRequireCounts0"] : "";
+                    if (talentBookDefaultIndex === -1 || talentBookDefaultValue === "" || talentBookDefaultValue === "0-0-0") {
+                        if (talentBookDefaultIndex !== -1) {
+                            configData[talentBookDefaultIndex]["talentBookRequireCounts0"] = "9-63-114";
+                        } else {
+                            configData.push({ "talentBookRequireCounts0": "9-63-114" });
+                        }
+                        log.info(`✅ 已设置天赋书数量配置: 9-63-114`);
                     }
                     
-                    // 默认武器材料数量：5-14-12-5
+                    // 武器材料数量：根据武器名称是否为空决定
                     const weaponMaterialDefaultIndex = configData.findIndex(item => item.hasOwnProperty("weaponMaterialRequireCounts0"));
-                    if (weaponMaterialDefaultIndex === -1) {
-                        configData.push({ "weaponMaterialRequireCounts0": "5-14-12-5" });
-                        log.info(`✅ 已添加默认武器材料数量配置: 5-14-12-5`);
+                    const weaponMaterialDefaultValue = weaponMaterialDefaultIndex !== -1 ? configData[weaponMaterialDefaultIndex]["weaponMaterialRequireCounts0"] : "";
+                    // 如果武器名称为空，设置为0-0-0-0；否则设置为默认值5-14-12-5
+                    const weaponMaterialTargetValue = (settings.weaponName && settings.weaponName.trim() !== "") ? "5-14-12-5" : "0-0-0-0";
+                    if (weaponMaterialDefaultIndex === -1 || weaponMaterialDefaultValue === "" || weaponMaterialDefaultValue === "0-0-0-0") {
+                        if (weaponMaterialDefaultIndex !== -1) {
+                            configData[weaponMaterialDefaultIndex]["weaponMaterialRequireCounts0"] = weaponMaterialTargetValue;
+                        } else {
+                            configData.push({ "weaponMaterialRequireCounts0": weaponMaterialTargetValue });
+                        }
+                        log.info(`✅ 已设置武器材料数量配置: ${weaponMaterialTargetValue}`);
                     }
                     
-                    // 默认首领材料数量：46
+                    // 武器魔物名称：如果武器名称为空，设置为空
+                    if (!settings.weaponName || settings.weaponName.trim() === "") {
+                        const weapons1EmptyIndex = configData.findIndex(item => item.hasOwnProperty("Weapons1 material0"));
+                        if (weapons1EmptyIndex !== -1) {
+                            configData[weapons1EmptyIndex]["Weapons1 material0"] = "";
+                        } else {
+                            configData.push({ "Weapons1 material0": "" });
+                        }
+                        log.info(`✅ 已设置武器1魔物名称为空（武器名称为空）`);
+                        
+                        const weapons2EmptyIndex = configData.findIndex(item => item.hasOwnProperty("Weapons2 material0"));
+                        if (weapons2EmptyIndex !== -1) {
+                            configData[weapons2EmptyIndex]["Weapons2 material0"] = "";
+                        } else {
+                            configData.push({ "Weapons2 material0": "" });
+                        }
+                        log.info(`✅ 已设置武器2魔物名称为空（武器名称为空）`);
+                    }
+                    
+                    // 默认首领材料数量：46（Wiki模式下，如果值为0也需要更新为默认值）
                     const bossMaterialDefaultIndex = configData.findIndex(item => item.hasOwnProperty("bossRequireCounts0"));
-                    if (bossMaterialDefaultIndex === -1) {
-                        configData.push({ "bossRequireCounts0": 46 });
-                        log.info(`✅ 已添加默认首领材料数量配置: 46`);
+                    const bossMaterialDefaultValue = bossMaterialDefaultIndex !== -1 ? configData[bossMaterialDefaultIndex]["bossRequireCounts0"] : 0;
+                    if (bossMaterialDefaultIndex === -1 || Number(bossMaterialDefaultValue) === 0) {
+                        if (bossMaterialDefaultIndex !== -1) {
+                            configData[bossMaterialDefaultIndex]["bossRequireCounts0"] = 46;
+                        } else {
+                            configData.push({ "bossRequireCounts0": 46 });
+                        }
+                        log.info(`✅ 已设置首领材料数量配置: 46`);
                     }
                     
-                    // 默认地方特产需求量：168（Wiki模式下，如果值为0也需要更新为默认值）
+                    // 默认地方特产需求量：168（Wiki模式下，总是更新）
                     const needLocalAmountIndex = configData.findIndex(item => item.hasOwnProperty("needLocalAmount"));
-                    const needLocalAmountValue = needLocalAmountIndex !== -1 ? configData[needLocalAmountIndex]["needLocalAmount"] : 0;
-                    if (needLocalAmountIndex === -1 || Number(needLocalAmountValue) === 0) {
-                        // 查找包含 LocalSpecialties 的对象
-                        const localSpecialtiesIndex = configData.findIndex(item => item.hasOwnProperty("LocalSpecialties"));
-                        
-                        // 如果 needLocalAmount 存在于其他对象中且值为0，先删除它
-                        if (needLocalAmountIndex !== -1 && Number(needLocalAmountValue) === 0) {
-                            delete configData[needLocalAmountIndex]["needLocalAmount"];
-                        }
-                        
-                        // 添加到包含 LocalSpecialties 的对象中
-                        if (localSpecialtiesIndex !== -1) {
-                            configData[localSpecialtiesIndex]["needLocalAmount"] = 168;
-                            log.info(`✅ 已设置地方特产需求量配置: 168`);
-                        } else {
-                            configData.push({ "needLocalAmount": 168 });
-                            log.info(`✅ 已添加地方特产需求量配置: 168`);
-                        }
+                    const localSpecialtiesIndex = configData.findIndex(item => item.hasOwnProperty("LocalSpecialties"));
+                    
+                    // 如果 needLocalAmount 存在于其他对象中，先删除它
+                    if (needLocalAmountIndex !== -1 && needLocalAmountIndex !== localSpecialtiesIndex) {
+                        delete configData[needLocalAmountIndex]["needLocalAmount"];
                     }
                     
-                    // 默认敌人与魔物需求量：100（Wiki模式下，如果值为0也需要更新为默认值）
+                    // 添加到包含 LocalSpecialties 的对象中
+                    if (localSpecialtiesIndex !== -1) {
+                        configData[localSpecialtiesIndex]["needLocalAmount"] = 168;
+                        log.info(`✅ 已设置地方特产需求量配置: 168`);
+                    } else {
+                        configData.push({ "needLocalAmount": 168 });
+                        log.info(`✅ 已添加地方特产需求量配置: 168`);
+                    }
+                    
+                    // 默认敌人与魔物需求量：100（Wiki模式下，总是更新）
                     const needMonsterStar3Index = configData.findIndex(item => item.hasOwnProperty("needMonsterStar3"));
-                    const needMonsterStar3Value = needMonsterStar3Index !== -1 ? configData[needMonsterStar3Index]["needMonsterStar3"] : 0;
-                    if (needMonsterStar3Index === -1 || Number(needMonsterStar3Value) === 0) {
-                        // 查找包含 Magic material0 的对象
-                        const magicMaterialIndex = configData.findIndex(item => item.hasOwnProperty("Magic material0"));
-                        
-                        // 如果 needMonsterStar3 存在于其他对象中且值为0，先删除它
-                        if (needMonsterStar3Index !== -1 && Number(needMonsterStar3Value) === 0) {
-                            delete configData[needMonsterStar3Index]["needMonsterStar3"];
-                        }
-                        
-                        // 添加到包含 Magic material0 的对象中
-                        if (magicMaterialIndex !== -1) {
-                            configData[magicMaterialIndex]["needMonsterStar3"] = 100;
-                            log.info(`✅ 已设置敌人与魔物需求量配置: 100`);
-                        } else {
-                            configData.push({ "needMonsterStar3": 100 });
-                            log.info(`✅ 已添加敌人与魔物需求量配置: 100`);
-                        }
+                    const magicMaterialIndex = configData.findIndex(item => item.hasOwnProperty("Magic material0"));
+                    
+                    // 如果 needMonsterStar3 存在于其他对象中，先删除它
+                    if (needMonsterStar3Index !== -1 && needMonsterStar3Index !== magicMaterialIndex) {
+                        delete configData[needMonsterStar3Index]["needMonsterStar3"];
                     }
                     
-                    // 默认武器1材料需求量：100（Wiki模式下，如果值为0也需要更新为默认值）
+                    // 添加到包含 Magic material0 的对象中
+                    if (magicMaterialIndex !== -1) {
+                        configData[magicMaterialIndex]["needMonsterStar3"] = 100;
+                        log.info(`✅ 已设置敌人与魔物需求量配置: 100`);
+                    } else {
+                        configData.push({ "needMonsterStar3": 100 });
+                        log.info(`✅ 已添加敌人与魔物需求量配置: 100`);
+                    }
+                    
+                    // 默认武器1材料需求量：根据武器名称是否为空决定（Wiki模式下，总是更新）
                     const needamount1Index = configData.findIndex(item => item.hasOwnProperty("needamount1 stars3"));
-                    const needamount1Value = needamount1Index !== -1 ? configData[needamount1Index]["needamount1 stars3"] : 0;
-                    if (needamount1Index === -1 || Number(needamount1Value) === 0) {
-                        // 查找包含 Weapons1 material0 的对象
-                        const weapons1Index = configData.findIndex(item => item.hasOwnProperty("Weapons1 material0"));
-                        
-                        // 如果 needamount1 stars3 存在于其他对象中且值为0，先删除它
-                        if (needamount1Index !== -1 && Number(needamount1Value) === 0) {
-                            delete configData[needamount1Index]["needamount1 stars3"];
-                        }
-                        
-                        // 添加到包含 Weapons1 material0 的对象中
-                        if (weapons1Index !== -1) {
-                            configData[weapons1Index]["needamount1 stars3"] = 100;
-                            log.info(`✅ 已设置武器1材料需求量配置: 100`);
-                        } else {
-                            configData.push({ "needamount1 stars3": 100 });
-                            log.info(`✅ 已添加武器1材料需求量配置: 100`);
-                        }
+                    const needamount1TargetValue = (settings.weaponName && settings.weaponName.trim() !== "") ? 100 : 0;
+                    // 查找包含 Weapons1 material0 的对象
+                    const weapons1Index = configData.findIndex(item => item.hasOwnProperty("Weapons1 material0"));
+                    
+                    // 如果 needamount1 stars3 存在于其他对象中，先删除它
+                    if (needamount1Index !== -1 && needamount1Index !== weapons1Index) {
+                        delete configData[needamount1Index]["needamount1 stars3"];
                     }
                     
-                    // 默认武器2材料需求量：100（Wiki模式下，如果值为0也需要更新为默认值）
+                    // 添加到包含 Weapons1 material0 的对象中
+                    if (weapons1Index !== -1) {
+                        configData[weapons1Index]["needamount1 stars3"] = needamount1TargetValue;
+                        log.info(`✅ 已设置武器1材料需求量配置: ${needamount1TargetValue}`);
+                    } else {
+                        configData.push({ "needamount1 stars3": needamount1TargetValue });
+                        log.info(`✅ 已添加武器1材料需求量配置: ${needamount1TargetValue}`);
+                    }
+                    
+                    // 默认武器2材料需求量：根据武器名称是否为空决定（Wiki模式下，总是更新）
                     const needamount2Index = configData.findIndex(item => item.hasOwnProperty("needamount2 stars3"));
-                    const needamount2Value = needamount2Index !== -1 ? configData[needamount2Index]["needamount2 stars3"] : 0;
-                    if (needamount2Index === -1 || Number(needamount2Value) === 0) {
-                        // 查找包含 Weapons2 material0 的对象
-                        const weapons2Index = configData.findIndex(item => item.hasOwnProperty("Weapons2 material0"));
-                        
-                        // 如果 needamount2 stars3 存在于其他对象中且值为0，先删除它
-                        if (needamount2Index !== -1 && Number(needamount2Value) === 0) {
-                            delete configData[needamount2Index]["needamount2 stars3"];
-                        }
-                        
-                        // 添加到包含 Weapons2 material0 的对象中
-                        if (weapons2Index !== -1) {
-                            configData[weapons2Index]["needamount2 stars3"] = 100;
-                            log.info(`✅ 已设置武器2材料需求量配置: 100`);
-                        } else {
-                            configData.push({ "needamount2 stars3": 100 });
-                            log.info(`✅ 已添加武器2材料需求量配置: 100`);
-                        }
+                    const needamount2TargetValue = (settings.weaponName && settings.weaponName.trim() !== "") ? 100 : 0;
+                    // 查找包含 Weapons2 material0 的对象
+                    const weapons2Index = configData.findIndex(item => item.hasOwnProperty("Weapons2 material0"));
+                    
+                    // 如果 needamount2 stars3 存在于其他对象中，先删除它
+                    if (needamount2Index !== -1 && needamount2Index !== weapons2Index) {
+                        delete configData[needamount2Index]["needamount2 stars3"];
+                    }
+                    
+                    // 添加到包含 Weapons2 material0 的对象中
+                    if (weapons2Index !== -1) {
+                        configData[weapons2Index]["needamount2 stars3"] = needamount2TargetValue;
+                        log.info(`✅ 已设置武器2材料需求量配置: ${needamount2TargetValue}`);
+                    } else {
+                        configData.push({ "needamount2 stars3": needamount2TargetValue });
+                        log.info(`✅ 已添加武器2材料需求量配置: ${needamount2TargetValue}`);
                     }
                     
                     // 保存更新后的配置
@@ -889,6 +918,20 @@ const Main = async () => {
                     log.warn("⚠️ Wiki 数据获取失败，将使用现有配置继续运行");
                 }
             } catch (wikiError) {
+                // 检查是否是HTTP权限错误
+                if (wikiError.message.includes("不允许使用HTTP请求") || wikiError.message.includes("JS HTTP权限")) {
+                    log.error(`❌ ${wikiError.message}`);
+
+                    // 显示警告弹窗并结束脚本
+                    await showErrorModal({
+                        title: 'Wiki数据获取失败',
+                        message: wikiError.message + '\n\n请在调度器【修改通用设置】中滑动到最底下，启用「JS HTTP权限」后重试。',
+                        timeout: 20
+                    });
+
+                    throw new Error(wikiError.message);
+                }
+
                 // 检查是否是我们抛出的错误（角色/武器/材料不存在等）
                 if (wikiError.message.includes("名字错误") || wikiError.message.includes("名称错误") || wikiError.message.includes("不存在") || wikiError.message.includes("获取失败")) {
                     log.error(`❌ ${wikiError.message}`);
@@ -1187,7 +1230,38 @@ const Main = async () => {
         
         // 首领材料刷取逻辑
         Overlay.updateStage('首领材料刷取', '准备挑战首领...', 50);
+
         for (let i = 0; i < 1; i++) {
+            // Wiki模式下，总是根据Boss材料名称重新获取Boss名称（避免遗留数据）
+            const bossMaterialNameRaw = getConfigValue("bossMaterialNameRaw");
+            
+            if (bossMaterialNameRaw && bossMaterialNameRaw.trim() !== "" && settings.enableWikiDataFetch) {
+                log.info(`📌 Wiki模式下，根据Boss材料【${bossMaterialNameRaw}】重新获取Boss名称...`);
+                Overlay.updateStage('首领材料刷取', '正在获取Boss名称...', 50);
+                const bossName = await WikiFetcher.getBossNameFromMaterial(bossMaterialNameRaw);
+                if (bossName) {
+                    // 将Boss名称写入config
+                    const configPath = Constants.CONFIG_PATH;
+                    let configData = [];
+                    try {
+                        configData = JSON.parse(file.readTextSync(configPath));
+                    } catch (e) {
+                        configData = [];
+                    }
+                    const bossConfigIndex = configData.findIndex(item => item.hasOwnProperty("bossMaterialName"));
+                    if (bossConfigIndex !== -1) {
+                        configData[bossConfigIndex]["bossMaterialName"] = bossName;
+                    } else {
+                        configData.push({ "bossMaterialName": bossName });
+                    }
+                    file.writeTextSync(configPath, JSON.stringify(configData, null, 2));
+                    log.info(`✅ 已更新 Boss 名称到配置: ${bossName}`);
+                }
+            }
+            
+            // 获取Boss名称（用于后续匹配）
+            let bossMaterialNameFromConfig = getConfigValue("bossMaterialName");
+            
             const bossMaterialCandidates = [
                 "蕴光月守宫",
                 "爆炎树",
@@ -1230,7 +1304,6 @@ const Main = async () => {
                 "超重型陆巡舰·机动战垒",
                 "深黯魇语之主"
             ];
-            const bossMaterialNameFromConfig = getConfigValue("bossMaterialName");
             if (!bossMaterialNameFromConfig || bossMaterialNameFromConfig.trim() === "") {
                 log.info(`首领材料配置为空，跳过执行`);
                 continue;
@@ -1342,9 +1415,9 @@ async function runMaterialCollection() {
     if (localKeyword) {
         Overlay.updateStage('地方特产采集', '采集材料：' + localKeyword + ' ❃准备采集中...', 60);
     }
-    const allMagicKeywords = Collection.extractAllMagicKeywords(config);
-    const allWeapons1Keywords = Collection.extractAllWeapons1Keywords(config);
-    const allWeapons2Keywords = Collection.extractAllWeapons2Keywords(config);
+    let allMagicKeywords = Collection.extractAllMagicKeywords(config);
+    let allWeapons1Keywords = Collection.extractAllWeapons1Keywords(config);
+    let allWeapons2Keywords = Collection.extractAllWeapons2Keywords(config);
     
     log.info(`读取到配置：`);
     log.info(`- 地方特产：关键词[${localKeyword}]`);
@@ -1363,28 +1436,55 @@ async function runMaterialCollection() {
     let hasSwitchedToLocalTeam = false;
     let hasSwitchedToCombatTeam = false;
     
+    // 当前角色名称和UID（用于检查已完成任务）
+    const currentCharacterName = getStandardCharacterName(settings.Character) || (settings.Character ? settings.Character.trim() : "未知角色");
+    
     // 检查地方特产
     if (localKeyword && Number(config["needLocalAmount"]) > 0) {
-        hasAnyMaterialToCollect = true;
-        hasLocalToCollect = true;
+        // 检查是否已完成地方特产任务
+        const localTaskCompleted = await TaskManager.isTaskCompleted("local", localKeyword, config["needLocalAmount"], currentCharacterName, currentUid);
+        if (!localTaskCompleted) {
+            hasAnyMaterialToCollect = true;
+            hasLocalToCollect = true;
+        } else {
+            log.info(`✅ [地方特产] 已完成该材料任务，将跳过执行`);
+        }
     }
     
     // 检查敌人与魔物
     if (allMagicKeywords.length > 0 && Number(config["needMonsterStar3"]) > 0) {
-        hasAnyMaterialToCollect = true;
-        hasMagicToCollect = true;
+        const magicMaterialName = allMagicKeywords.join(', ');
+        const magicTaskCompleted = await TaskManager.isTaskCompleted("magic", magicMaterialName, config["needMonsterStar3"], currentCharacterName, currentUid);
+        if (!magicTaskCompleted) {
+            hasAnyMaterialToCollect = true;
+            hasMagicToCollect = true;
+        } else {
+            log.info(`✅ [敌人与魔物] 已完成该材料任务，将跳过执行`);
+        }
     }
     
     // 检查武器1材料
     if (allWeapons1Keywords.length > 0 && Number(config["needamount1 stars3"]) > 0) {
-        hasAnyMaterialToCollect = true;
-        hasWeapons1ToCollect = true;
+        const weapons1MaterialName = allWeapons1Keywords.join(', ');
+        const weapons1TaskCompleted = await TaskManager.isTaskCompleted("weapons1", weapons1MaterialName, config["needamount1 stars3"], currentCharacterName, currentUid);
+        if (!weapons1TaskCompleted) {
+            hasAnyMaterialToCollect = true;
+            hasWeapons1ToCollect = true;
+        } else {
+            log.info(`✅ [武器1材料] 已完成该材料任务，将跳过执行`);
+        }
     }
     
     // 检查武器2材料
     if (allWeapons2Keywords.length > 0 && Number(config["needamount2 stars3"]) > 0) {
-        hasAnyMaterialToCollect = true;
-        hasWeapons2ToCollect = true;
+        const weapons2MaterialName = allWeapons2Keywords.join(', ');
+        const weapons2TaskCompleted = await TaskManager.isTaskCompleted("weapons2", weapons2MaterialName, config["needamount2 stars3"], currentCharacterName, currentUid);
+        if (!weapons2TaskCompleted) {
+            hasAnyMaterialToCollect = true;
+            hasWeapons2ToCollect = true;
+        } else {
+            log.info(`✅ [武器2材料] 已完成该材料任务，将跳过执行`);
+        }
     }
     
     // 只有在有需要执行的材料采集时，才前往指定地点并切换队伍
@@ -1419,6 +1519,45 @@ async function runMaterialCollection() {
         
         // 2. 敌人与魔物
         if (allMagicKeywords.length > 0) {
+            // Wiki模式下，总是根据天赋怪物材料名称重新获取天赋怪物名称（避免遗留数据）
+            const talentMobMaterialNameRaw = config["talentMobMaterialNameRaw"];
+            
+            if (talentMobMaterialNameRaw && talentMobMaterialNameRaw.trim() !== "" && settings.enableWikiDataFetch) {
+                log.info(`📌 Wiki模式下，根据天赋怪物材料【${talentMobMaterialNameRaw}】重新获取天赋怪物名称...`);
+                Overlay.updateStage('敌人与魔物', '正在获取天赋怪物名称...', 30);
+                const talentMobName = await WikiFetcher.getTalentMobNameFromMaterial(talentMobMaterialNameRaw);
+                if (talentMobName) {
+                    // 将天赋怪物名称写入config
+                    const configPath = Constants.CONFIG_PATH;
+                    let configData = [];
+                    try {
+                        configData = JSON.parse(file.readTextSync(configPath));
+                    } catch (e) {
+                        configData = [];
+                    }
+                    const mobConfigIndex = configData.findIndex(item => item.hasOwnProperty("Magic material0"));
+                    if (mobConfigIndex !== -1) {
+                        configData[mobConfigIndex]["Magic material0"] = talentMobName;
+                    } else {
+                        configData.push({ "Magic material0": talentMobName });
+                    }
+                    file.writeTextSync(configPath, JSON.stringify(configData, null, 2));
+                    log.info(`✅ 已更新天赋怪物名称到配置: ${talentMobName}`);
+                    // 更新当前的config对象
+                    config["Magic material0"] = talentMobName;
+                    // 更新allMagicKeywords
+                    allMagicKeywords = [];
+                    const rawMagicKeywords = (talentMobName || "").toString().split(",");
+                    for (const keyword of rawMagicKeywords) {
+                        const trimmedKeyword = keyword.trim();
+                        if (trimmedKeyword.length > 2) {
+                            allMagicKeywords.push(trimmedKeyword);
+                        }
+                    }
+                    log.info(`📌 更新后的敌人与魔物关键词: ${allMagicKeywords.join(", ")}`);
+                }
+            }
+            
             if (hasMagicToCollect && !hasSwitchedToCombatTeam) {
                 log.info("📌 切换到战斗队伍...");
                 await Utils.switchPartySafe(settings.teamName);
@@ -1438,6 +1577,45 @@ async function runMaterialCollection() {
         
         // 3. 武器1材料
         if (allWeapons1Keywords.length > 0) {
+            // Wiki模式下，总是根据武器1材料名称重新获取武器魔物名称（避免遗留数据）
+            const weapons1MaterialNameRaw = config["Weapons1 materialNameRaw"];
+            
+            if (weapons1MaterialNameRaw && weapons1MaterialNameRaw.trim() !== "" && settings.enableWikiDataFetch) {
+                log.info(`📌 Wiki模式下，根据武器1材料【${weapons1MaterialNameRaw}】重新获取武器魔物名称...`);
+                Overlay.updateStage('武器1材料', '正在获取武器魔物名称...', 40);
+                const weapons1MobName = await WikiFetcher.getWeaponMobNameFromMaterial(weapons1MaterialNameRaw);
+                if (weapons1MobName) {
+                    // 将武器1魔物名称写入config
+                    const configPath = Constants.CONFIG_PATH;
+                    let configData = [];
+                    try {
+                        configData = JSON.parse(file.readTextSync(configPath));
+                    } catch (e) {
+                        configData = [];
+                    }
+                    const weapons1ConfigIndex = configData.findIndex(item => item.hasOwnProperty("Weapons1 material0"));
+                    if (weapons1ConfigIndex !== -1) {
+                        configData[weapons1ConfigIndex]["Weapons1 material0"] = weapons1MobName;
+                    } else {
+                        configData.push({ "Weapons1 material0": weapons1MobName });
+                    }
+                    file.writeTextSync(configPath, JSON.stringify(configData, null, 2));
+                    log.info(`✅ 已更新武器1魔物名称到配置: ${weapons1MobName}`);
+                    // 更新当前的config对象
+                    config["Weapons1 material0"] = weapons1MobName;
+                    // 更新allWeapons1Keywords
+                    allWeapons1Keywords = [];
+                    const rawWeapons1Keywords = (weapons1MobName || "").toString().split(",");
+                    for (const keyword of rawWeapons1Keywords) {
+                        const trimmedKeyword = keyword.trim();
+                        if (trimmedKeyword.length > 2) {
+                            allWeapons1Keywords.push(trimmedKeyword);
+                        }
+                    }
+                    log.info(`📌 更新后的武器1材料关键词: ${allWeapons1Keywords.join(", ")}`);
+                }
+            }
+            
             if (hasWeapons1ToCollect && !hasSwitchedToCombatTeam) {
                 log.info("📌 切换到战斗队伍...");
                 await Utils.switchPartySafe(settings.teamName);
@@ -1457,6 +1635,45 @@ async function runMaterialCollection() {
         
         // 4. 武器2材料
         if (allWeapons2Keywords.length > 0) {
+            // Wiki模式下，总是根据武器2材料名称重新获取武器魔物名称（避免遗留数据）
+            const weapons2MaterialNameRaw = config["Weapons2 materialNameRaw"];
+            
+            if (weapons2MaterialNameRaw && weapons2MaterialNameRaw.trim() !== "" && settings.enableWikiDataFetch) {
+                log.info(`📌 Wiki模式下，根据武器2材料【${weapons2MaterialNameRaw}】重新获取武器魔物名称...`);
+                Overlay.updateStage('武器2材料', '正在获取武器魔物名称...', 45);
+                const weapons2MobName = await WikiFetcher.getWeaponMobNameFromMaterial(weapons2MaterialNameRaw);
+                if (weapons2MobName) {
+                    // 将武器2魔物名称写入config
+                    const configPath = Constants.CONFIG_PATH;
+                    let configData = [];
+                    try {
+                        configData = JSON.parse(file.readTextSync(configPath));
+                    } catch (e) {
+                        configData = [];
+                    }
+                    const weapons2ConfigIndex = configData.findIndex(item => item.hasOwnProperty("Weapons2 material0"));
+                    if (weapons2ConfigIndex !== -1) {
+                        configData[weapons2ConfigIndex]["Weapons2 material0"] = weapons2MobName;
+                    } else {
+                        configData.push({ "Weapons2 material0": weapons2MobName });
+                    }
+                    file.writeTextSync(configPath, JSON.stringify(configData, null, 2));
+                    log.info(`✅ 已更新武器2魔物名称到配置: ${weapons2MobName}`);
+                    // 更新当前的config对象
+                    config["Weapons2 material0"] = weapons2MobName;
+                    // 更新allWeapons2Keywords
+                    allWeapons2Keywords = [];
+                    const rawWeapons2Keywords = (weapons2MobName || "").toString().split(",");
+                    for (const keyword of rawWeapons2Keywords) {
+                        const trimmedKeyword = keyword.trim();
+                        if (trimmedKeyword.length > 2) {
+                            allWeapons2Keywords.push(trimmedKeyword);
+                        }
+                    }
+                    log.info(`📌 更新后的武器2材料关键词: ${allWeapons2Keywords.join(", ")}`);
+                }
+            }
+            
             if (hasWeapons2ToCollect && !hasSwitchedToCombatTeam) {
                 log.info("📌 切换到战斗队伍...");
                 await Utils.switchPartySafe(settings.teamName);
@@ -1500,28 +1717,9 @@ async function executeMaterialCollection(options) {
     
     log.info(`\n========== 开始处理${materialType} ==========`);
     
-    // 读取当前需求量
-    // 如果启用了 Wiki 数据获取，使用默认需求量
-    let currentAmount;
-    if (settings.enableWikiDataFetch) {
-        // Wiki 模式下使用默认需求量
-        if (type === 'local') {
-            currentAmount = 168; // 地方特产默认需求量
-            log.info(`[${materialType}] Wiki 模式已启用，地方特产默认需求量为168`);
-        } else if (type === 'magic') {
-            currentAmount = 100; // 敌人与魔物默认需求量
-            log.info(`[${materialType}] Wiki 模式已启用，敌人与魔物默认需求量为100`);
-        } else if (type === 'boss') {
-            currentAmount = 46; // Boss 材料默认需求量
-            log.info(`[${materialType}] Wiki 模式已启用，Boss 材料默认需求量为46`);
-        } else {
-            currentAmount = 0;
-            log.info(`[${materialType}] Wiki 模式已启用，材料数量默认为零`);
-        }
-    } else {
-        const config = Utils.readJson(Constants.CONFIG_PATH);
-        currentAmount = Number(config[configKey]) || 0;
-    }
+    // 读取当前需求量（统一从config读取，Wiki模式下已在开头设置默认值）
+    const config = Utils.readJson(Constants.CONFIG_PATH);
+    const currentAmount = Number(config[configKey]) || 0;
     
     if (currentAmount <= 0) {
         log.info(`[${materialType}] 需求数量为0，跳过执行`);
@@ -1766,23 +1964,9 @@ async function executeMonsterBatch(allScripts, configKey, materialType, currentU
     Overlay.updateStage(materialType, '准备收集...', 60);
 
     while (remainingScripts.length > 0) {
-        // 如果启用了 Wiki 数据获取，使用默认需求量
-        let currentAmount;
-        if (settings.enableWikiDataFetch) {
-            // Wiki 模式下使用默认需求量
-            if (type === 'local') {
-                currentAmount = 168; // 地方特产默认需求量
-            } else if (type === 'magic') {
-                currentAmount = 100; // 敌人与魔物默认需求量
-            } else if (type === 'boss') {
-                currentAmount = 46; // Boss 材料默认需求量
-            } else {
-                currentAmount = 0;
-            }
-        } else {
-            const config = Utils.readJson(Constants.CONFIG_PATH);
-            currentAmount = Number(config[configKey]) || 0;
-        }
+        // 读取当前需求量（统一从config读取，Wiki模式下已在开头设置默认值）
+        const config = Utils.readJson(Constants.CONFIG_PATH);
+        const currentAmount = Number(config[configKey]) || 0;
         
         log.info(`\n📊 [${materialType}] 当前材料需求量：${currentAmount}，剩余脚本数：${remainingScripts.length}`);
         
@@ -2005,6 +2189,28 @@ async function runLeyLineManagement() {
             await TaskManager.addCompletedTask("mora", "摩拉地脉花", 0, leyLineCharacterName, leyLineUid);
         }
 
+        // 检查是否已完成地脉花任务
+        const expTaskCompleted = await TaskManager.isTaskCompleted("exp", "经验书地脉花", expRuns, leyLineCharacterName, leyLineUid);
+        const moraTaskCompleted = await TaskManager.isTaskCompleted("mora", "摩拉地脉花", moraRuns, leyLineCharacterName, leyLineUid);
+        
+        if (expTaskCompleted && moraTaskCompleted) {
+            log.info("✅ 经验书和摩拉地脉花任务均已完成，跳过执行");
+            Utils.addNotification("✅ 经验书和摩拉地脉花任务均已完成，跳过执行");
+            return;
+        }
+        
+        if (expTaskCompleted) {
+            log.info("✅ 经验书地脉花任务已完成，跳过执行");
+            Utils.addNotification("✅ 经验书地脉花任务已完成，跳过执行");
+            expRuns = 0;
+        }
+        
+        if (moraTaskCompleted) {
+            log.info("✅ 摩拉地脉花任务已完成，跳过执行");
+            Utils.addNotification("✅ 摩拉地脉花任务已完成，跳过执行");
+            moraRuns = 0;
+        }
+
         // 执行地脉花任务
         if (expRuns > 0 || moraRuns > 0) {
             await runAutoLeyLineOutcropTask(expRuns, moraRuns, stamina);
@@ -2213,7 +2419,7 @@ async function runAutoLeyLineOutcropTask(expRuns, moraRuns, stamina) {
                 taskParam.UseFragileResin = false;
                 taskParam.UseTransientResin = false;
                 taskParam.IsNotification = false;
-                taskParam.FightConfig.StrategyName = settings.strategyName || "auto";
+                taskParam.FightConfig.StrategyName = settings.strategyName || "";
                 await dispatcher.RunAutoLeyLineOutcropTask(taskParam);
                 log.info("藏金之花完成");
             }
@@ -2245,7 +2451,7 @@ async function runAutoLeyLineOutcropTask(expRuns, moraRuns, stamina) {
                 taskParam.UseFragileResin = false;
                 taskParam.UseTransientResin = false;
                 taskParam.IsNotification = false;
-                taskParam.FightConfig.StrategyName = settings.strategyName || "auto";
+                taskParam.FightConfig.StrategyName = settings.strategyName || "";
                 await dispatcher.RunAutoLeyLineOutcropTask(taskParam);
                 log.info("启示之花完成");
             }
