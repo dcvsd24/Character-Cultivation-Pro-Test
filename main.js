@@ -3,25 +3,37 @@
 
 log.info("开始加载模块...");
 
-eval(file.readTextSync("lib/checkVersion.js"));
+const MODULES = [
+    "lib/checkVersion.js",
+    "lib/constants.js",
+    "lib/utils.js",
+    "lib/taskManager.js",
+    "lib/ocrHelper.js",
+    "lib/navigation.js",
+    "lib/combat.js",
+    "lib/inventory.js",
+    "lib/farming.js",
+    "lib/collection.js",
+    "lib/character.js",
+    "lib/ui_navigator.js",
+    "lib/calculator.js",
+    "lib/image_recognition.js",
+    "lib/file_utils.js",
+    "lib/overlay.js",
+    "lib/wiki.js",
+    "lib/leyLine.js"
+];
 
-eval(file.readTextSync("lib/constants.js"));
-eval(file.readTextSync("lib/utils.js"));
-eval(file.readTextSync("lib/taskManager.js"));
-eval(file.readTextSync("lib/ocrHelper.js"));
-eval(file.readTextSync("lib/navigation.js"));
-eval(file.readTextSync("lib/combat.js"));
-eval(file.readTextSync("lib/inventory.js"));
-eval(file.readTextSync("lib/farming.js"));
-eval(file.readTextSync("lib/collection.js"));
-eval(file.readTextSync("lib/character.js"));
-eval(file.readTextSync("lib/ui_navigator.js"));
-eval(file.readTextSync("lib/calculator.js"));
-eval(file.readTextSync("lib/image_recognition.js"));
-eval(file.readTextSync("lib/file_utils.js"));
-eval(file.readTextSync("lib/overlay.js"));
-eval(file.readTextSync("lib/wiki.js"));
-eval(file.readTextSync("lib/leyLine.js"));
+for (const modulePath of MODULES) {
+    try {
+        log.info(`正在加载模块: ${modulePath}`);
+        eval(file.readTextSync(modulePath));
+        log.info(`模块加载成功: ${modulePath}`);
+    } catch (e) {
+        log.error(`模块加载失败: ${modulePath}, 错误: ${e.message}`);
+        throw new Error(`模块加载失败: ${modulePath}, 错误: ${e.message}`);
+    }
+}
 
 log.info("所有模块加载完成");
 
@@ -59,6 +71,14 @@ async function showErrorModal(options = {}) {
         showAgreeBtn = false,
         onAgree = null
     } = options;
+
+    // htmlMask 不可用时的降级处理
+    if (typeof htmlMask === 'undefined' || !htmlMask || typeof htmlMask.show !== 'function') {
+        const fallbackMsg = `[${title}] ${message}`;
+        log.error(`htmlMask 不可用，无法显示错误弹窗: ${fallbackMsg}`);
+        notification.send(`htmlMask 不可用: ${fallbackMsg}`);
+        return false;
+    }
 
     const warningWinId = htmlMask.show("assets/warning-modal.html", "warning-modal");
     htmlMask.setClickThrough(warningWinId, false);
@@ -141,6 +161,14 @@ function getStandardCharacterName(inputName) {
 // 返回: savedSettings 对象（用户保存了设置）或 null（超时/取消）
 // options.showAllZeroHint: 为 true 时显示"角色材料已全部收集完成"的黄色闪烁提示
 async function showSettingsModal(currentSettings, options = {}) {
+    // htmlMask 不可用时的降级处理
+    if (typeof htmlMask === 'undefined' || !htmlMask || typeof htmlMask.show !== 'function') {
+        const fallbackMsg = 'htmlMask 不可用，无法显示设置弹窗，请通过 BetterGI 的「修改 JS 自定义配置」进行设置';
+        log.error(fallbackMsg);
+        notification.send(fallbackMsg);
+        return null;
+    }
+
     const settingsWinId = htmlMask.show("assets/settings-modal.html", "settings-modal");
     htmlMask.setClickThrough(settingsWinId, false);
 
@@ -433,135 +461,23 @@ const Main = async () => {
         
         if (!inputCharacterName) {
             log.warn("角色名称为空，请先配置设置");
-            
-            // 显示设置遮罩弹窗
-            const settingsWinId = htmlMask.show("assets/settings-modal.html", "settings-modal");
-            htmlMask.setClickThrough(settingsWinId, false); // 使窗口可交互
-            
-            // 发送当前设置到遮罩
-            htmlMask.send(settingsWinId, "/initSettings", JSON.stringify({
-                Character: settings.Character || "",
-                bossRequireCounts: settings.bossRequireCounts || "80级",
-                weaponMaterialRequireCounts: settings.weaponMaterialRequireCounts || "80级",
-                talentBookRequireCounts: settings.talentBookRequireCounts || "1-10-10",
-                teamName: settings.teamName || "",
-                strategyName: settings.strategyName || "",
-                teamName2: settings.teamName2 || "",
-                isNoGrassGod: settings.isNoGrassGod || false,
-                energyMax: settings.energyMax || false,
-                unfairContractTerms: settings.unfairContractTerms || false,
-                checkVersionEnabled: settings.checkVersionEnabled !== false,
-                showSettingsOnStartup: settings.showSettingsOnStartup || false,
-                enableWikiDataFetch: settings.enableWikiDataFetch || false,
-                weaponName: settings.weaponName || "",
-                adventurePath: settings.adventurePath || "蒙德",
-                enableUidMask: settings.enableUidMask || false,
-                uidMaskPositionX: settings.uidMaskPositionX || "0",
-                uidMaskPositionY: settings.uidMaskPositionY || "0"
-            }));
-            
-            // 等待用户操作（最多30秒，用户操作时会延长）
-            let startTime = Date.now();
-            const timeoutMs = 30000;
-            let savedSettings = null;
-            
-            while (htmlMask.exists(settingsWinId)) {
-                // 检查是否超时
-                if (Date.now() - startTime >= timeoutMs) {
-                    htmlMask.close(settingsWinId);
-                    break;
-                }
-                
-                const msg = await htmlMask.receive(settingsWinId, 1000);
-                if (msg) {
-                    try {
-                        const parsed = JSON.parse(msg);
-                        if (parsed.url === '/close') {
-                            htmlMask.close(settingsWinId);
-                            // 解析 data 中的 action
-                            let closeData = parsed.data;
-                            if (typeof closeData === 'string') {
-                                try { closeData = JSON.parse(closeData); } catch (e) {}
-                            }
-                            if (closeData && closeData.action === 'cancel') {
-                                throw new Error('用户取消设置，脚本终止');
-                            }
-                            break;
-                        } else if (parsed.url === '/save') {
-                            // 解析 data 中的设置数据
-                            let saveData = parsed.data;
-                            if (typeof saveData === 'string') {
-                                try { saveData = JSON.parse(saveData); } catch (e) {}
-                            }
-                            savedSettings = saveData;
-                            htmlMask.close(settingsWinId);
-                            break;
-                        } else if (parsed.url === '/userActive') {
-                            // 用户正在操作，重置超时时间
-                            startTime = Date.now();
-                        }
-                    } catch (parseError) {
-                        // 如果是脚本终止错误，直接抛出
-                        if (parseError.message === '用户取消设置，脚本终止') {
-                            throw parseError;
-                        }
-                        // 可能是简单的字符串消息
-                        if (msg === '/close') {
-                            htmlMask.close(settingsWinId);
-                            throw new Error('用户取消设置，脚本终止');
-                        }
-                    }
-                }
-            }
-            
-            // 如果用户保存了设置，写入 user_settings.json（不修改 settings.json 的 default 字段）
+
+            // 复用 showSettingsModal 的 ready-handshake 流程，避免初始化消息竞态
+            const savedSettings = await showSettingsModal(settings, {});
             if (savedSettings) {
-                try {
-                    log.info(`收到保存的设置: ${JSON.stringify(savedSettings)}`);
-                    
-                    // 将用户设置保存到 user_settings.json
-                    const userSettingsPath = "data/user_settings.json";
-                    file.writeTextSync(userSettingsPath, JSON.stringify(savedSettings, null, 2));
-                    log.info("✅ 设置已保存到 user_settings.json");
-                    
-                    // 更新当前运行时的 settings 对象
-                    settings.Character = savedSettings.Character;
-                    settings.bossRequireCounts = savedSettings.bossRequireCounts;
-                    settings.weaponMaterialRequireCounts = savedSettings.weaponMaterialRequireCounts;
-                    settings.talentBookRequireCounts = savedSettings.talentBookRequireCounts;
-                    settings.teamName = savedSettings.teamName;
-                    settings.strategyName = savedSettings.strategyName;
-                    settings.teamName2 = savedSettings.teamName2;
-                    settings.isNoGrassGod = savedSettings.isNoGrassGod;
-                    settings.energyMax = savedSettings.energyMax;
-                    settings.unfairContractTerms = savedSettings.unfairContractTerms;
-                    settings.checkVersionEnabled = savedSettings.checkVersionEnabled;
-                    settings.showSettingsOnStartup = savedSettings.showSettingsOnStartup;
-                    settings.enableWikiDataFetch = savedSettings.enableWikiDataFetch;
-                    settings.weaponName = savedSettings.weaponName || "";
-                    settings.adventurePath = savedSettings.adventurePath;
-                    settings.enableUidMask = savedSettings.enableUidMask;
-                    settings.uidMaskPositionX = savedSettings.uidMaskPositionX;
-                    settings.uidMaskPositionY = savedSettings.uidMaskPositionY;
-                    
-                    // 更新 UID 遮挡位置（如果已启用）
-                    if (settings.enableUidMask) {
-                        const uidMaskX = parseInt(settings.uidMaskPositionX) || 0;
-                        const uidMaskY = parseInt(settings.uidMaskPositionY) || 0;
-                        Overlay.showUidMask(uidMaskX, uidMaskY);
-                        log.info(`✅ UID遮挡位置已更新: (${uidMaskX}, ${uidMaskY})`);
-                    } else {
-                        Overlay.closeUidMask();
-                    }
-                    
-                    // 更新 inputCharacterName 变量
-                    inputCharacterName = savedSettings.Character ? savedSettings.Character.trim() : "";
-                    
-                    log.info("设置已更新，继续运行脚本");
-                } catch (saveError) {
-                    log.error(`保存设置失败: ${saveError.message}`);
-                    throw new Error('保存设置失败，脚本终止');
+                inputCharacterName = savedSettings.Character ? savedSettings.Character.trim() : "";
+
+                // 更新 UID 遮挡位置（如果已启用）
+                if (settings.enableUidMask) {
+                    const uidMaskX = parseInt(settings.uidMaskPositionX) || 0;
+                    const uidMaskY = parseInt(settings.uidMaskPositionY) || 0;
+                    Overlay.showUidMask(uidMaskX, uidMaskY);
+                    log.info(`✅ UID遮挡位置已更新: (${uidMaskX}, ${uidMaskY})`);
+                } else {
+                    Overlay.closeUidMask();
                 }
+
+                log.info("设置已更新，继续运行脚本");
             } else {
                 throw new Error('未配置角色名称，脚本终止');
             }
@@ -627,7 +543,17 @@ const Main = async () => {
                 
                 if (wikiMaterials) {
                     log.info(`📌 Wiki 材料名称获取结果: Boss材料=${wikiMaterials.bossMaterialName}, 天赋怪物材料=${wikiMaterials.talentMobMaterialName}, 区域特产=${wikiMaterials.specialtyName}, 天赋书=${wikiMaterials.talentBookName}`);
-                    
+
+                    // 校验 Wiki 解析结果，防止材料名为空或关键字段缺失时写入错误配置
+                    const requiredWikiFields = ['bossMaterialName', 'talentMobMaterialName', 'specialtyName', 'talentBookName'];
+                    const missingWikiFields = requiredWikiFields.filter(field => !wikiMaterials[field] || wikiMaterials[field].toString().trim() === '');
+                    if (missingWikiFields.length > 0) {
+                        const wikiErrMsg = `Wiki 解析结果校验失败，缺少关键材料字段：${missingWikiFields.join(', ')}，请检查角色名称或稍后重试`;
+                        log.error(`❌ ${wikiErrMsg}`);
+                        notification.send(wikiErrMsg);
+                        throw new Error(wikiErrMsg);
+                    }
+
                     // 自动填充配置（使用正确的字段名称）
                     const configPath = Constants.CONFIG_PATH;
                     let configData = [];
@@ -698,6 +624,17 @@ const Main = async () => {
                     // 获取武器信息（只有武器名称不为空时才获取）- 快速模式，只获取材料名称
                     if (settings.weaponName && settings.weaponName.trim() !== "") {
                         const weaponInfo = await WikiFetcher.getWeaponInfoFast(settings.weaponName);
+
+                        // 校验 Wiki 武器解析结果，防止武器名为空或关键字段缺失时写入错误配置
+                        const requiredWeaponFields = ['starLevel', 'weaponDomainName', 'weapons1MaterialName', 'weapons2MaterialName'];
+                        const missingWeaponFields = requiredWeaponFields.filter(field => !weaponInfo || !weaponInfo[field] || weaponInfo[field].toString().trim() === '');
+                        if (missingWeaponFields.length > 0) {
+                            const weaponErrMsg = `Wiki 武器解析结果校验失败，缺少关键字段：${missingWeaponFields.join(', ')}，请检查武器名称或稍后重试`;
+                            log.error(`❌ ${weaponErrMsg}`);
+                            notification.send(weaponErrMsg);
+                            throw new Error(weaponErrMsg);
+                        }
+
                         if (weaponInfo) {
                             // 处理武器星级
                             if (weaponInfo.starLevel) {
