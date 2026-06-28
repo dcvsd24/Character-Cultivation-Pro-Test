@@ -22,6 +22,7 @@
   "main": "main.js",
   "http_allowed_urls": [
     "https://raw.githubusercontent.com/dcvsd24/Character-Cultivation-Pro-Test/*",
-    "https://github.com/dcvsd24/Character-Cultivation-Pro-Test/*"
+    "https://github.com/dcvsd24/Character-Cultivation-Pro-Test/*",
+    "https://wiki.biligame.com/ys/*"
   ]
 }
