@@ -1,0 +1,422 @@
+:root {
+  /* === 设计令牌 / Design Tokens === */
+  /* 深色主题：与 genshin-planner 暗色模式保持一致 */
+  --gb-bg-deep: #12121c;
+  --gb-bg: #161625;
+  --gb-bg-elevated: #1e1e30;
+  --gb-card: rgba(30, 30, 48, 0.72);
+  --gb-card-solid: #1e1e30;
+  --gb-foreground: #f0f0f5;
+  --gb-muted: #a0a0b8;
+  --gb-border: rgba(255, 255, 255, 0.10);
+  --gb-border-strong: rgba(255, 255, 255, 0.16);
+  --gb-input-bg: rgba(18, 18, 28, 0.62);
+
+  /* 主色：青蓝-紫渐变 */
+  --gb-primary: #60a5fa;
+  --gb-primary-600: #4f8ef7;
+  --gb-primary-700: #3b72d6;
+  --gb-secondary: #8b5cf6;
+  --gb-secondary-600: #7c4ddb;
+
+  /* 强调色：金色 */
+  --gb-accent: #fbbf24;
+  --gb-accent-600: #f59e0b;
+
+  /* 功能色 */
+  --gb-success: #34d399;
+  --gb-success-600: #10b981;
+  --gb-danger: #f87171;
+  --gb-danger-600: #ef4444;
+  --gb-warning: #fbbf24;
+
+  /* 画框装饰线 */
+  --gb-frame-outer: rgba(118, 75, 162, 0.88);
+  --gb-frame-inner: rgba(139, 92, 246, 0.50);
+
+  /* 阴影 */
+  --gb-shadow-lg:
+    0 8px 32px rgba(0, 0, 0, 0.42),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
+  --gb-shadow-inset:
+    inset 0 1px 0 rgba(255, 255, 255, 0.10);
+
+  /* 圆角 */
+  --gb-radius-sm: 6px;
+  --gb-radius-md: 10px;
+  --gb-radius-lg: 14px;
+  --gb-radius-xl: 18px;
+
+  /* 字体 */
+  --gb-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', sans-serif;
+}
+
+/* === 基础 === */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: transparent;
+  font-family: var(--gb-font);
+  color: var(--gb-foreground);
+  overflow: hidden;
+  user-select: none;
+}
+
+/* === 玻璃态 === */
+.gb-glass {
+  background: var(--gb-card);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  border: 1px solid var(--gb-border);
+  border-radius: var(--gb-radius-lg);
+  box-shadow:
+    var(--gb-shadow-lg),
+    var(--gb-shadow-inset);
+}
+
+.gb-glass-strong {
+  background: rgba(30, 30, 48, 0.88);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+/* === 画框装饰 === */
+.gb-frame {
+  position: relative;
+}
+
+.gb-frame::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  border: 2px solid var(--gb-frame-outer);
+  border-radius: var(--gb-radius-md);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.gb-frame::after {
+  content: '';
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  border: 1px solid var(--gb-frame-inner);
+  border-radius: var(--gb-radius-sm);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* === 渐变 === */
+.gb-gradient-primary {
+  background: linear-gradient(135deg, var(--gb-primary) 0%, var(--gb-secondary) 100%);
+}
+
+.gb-gradient-primary-soft {
+  background: linear-gradient(135deg,
+    rgba(96, 165, 250, 0.90) 0%,
+    rgba(139, 92, 246, 0.85) 100%);
+}
+
+.gb-gradient-success {
+  background: linear-gradient(135deg, var(--gb-success) 0%, var(--gb-success-600) 100%);
+}
+
+.gb-gradient-danger {
+  background: linear-gradient(135deg, var(--gb-danger) 0%, var(--gb-danger-600) 100%);
+}
+
+.gb-gradient-text {
+  background: linear-gradient(135deg, var(--gb-primary) 0%, var(--gb-accent) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.gb-gradient-text-gold {
+  background: linear-gradient(135deg, var(--gb-accent) 0%, #fde68a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* === 按钮 === */
+.gb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 24px;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: var(--gb-radius-md);
+  cursor: pointer;
+  border: none;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.gb-btn-primary {
+  background: linear-gradient(135deg, var(--gb-primary) 0%, var(--gb-secondary) 100%);
+  color: #fff;
+  box-shadow:
+    0 4px 16px rgba(96, 165, 250, 0.30),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.gb-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 24px rgba(96, 165, 250, 0.40),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.gb-btn-primary:active {
+  transform: translateY(0);
+}
+
+.gb-btn-success {
+  background: linear-gradient(135deg, var(--gb-success) 0%, var(--gb-success-600) 100%);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(52, 211, 153, 0.30);
+}
+
+.gb-btn-success:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(52, 211, 153, 0.40);
+}
+
+.gb-btn-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--gb-foreground);
+  border: 1px solid var(--gb-border-strong);
+  box-shadow: var(--gb-shadow-inset);
+}
+
+.gb-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.gb-btn-icon {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: var(--gb-radius-sm);
+}
+
+/* === 输入框 === */
+.gb-input,
+.gb-select {
+  width: 100%;
+  background: var(--gb-input-bg);
+  border: 1px solid var(--gb-border-strong);
+  color: var(--gb-foreground);
+  padding: 7px 11px;
+  border-radius: var(--gb-radius-sm);
+  font-size: 14px;
+  outline: none;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.gb-input::placeholder {
+  color: rgba(160, 160, 184, 0.55);
+}
+
+.gb-input:focus,
+.gb-select:focus {
+  background: rgba(18, 18, 28, 0.78);
+  border-color: var(--gb-primary);
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.18);
+}
+
+.gb-select {
+  cursor: pointer;
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--gb-muted) 50%),
+    linear-gradient(135deg, var(--gb-muted) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 9px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 28px;
+}
+
+.gb-select option {
+  background: var(--gb-card-solid);
+  color: var(--gb-foreground);
+}
+
+/* === 复选框 === */
+.gb-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.gb-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--gb-secondary);
+  cursor: pointer;
+}
+
+.gb-checkbox span {
+  font-size: 14px;
+  color: var(--gb-foreground);
+  line-height: 1.4;
+}
+
+/* === 标签 === */
+.gb-label {
+  font-size: 13px;
+  color: var(--gb-muted);
+  line-height: 1.4;
+}
+
+.gb-label-required {
+  color: var(--gb-warning);
+}
+
+/* === 标题 === */
+.gb-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.gb-subtitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--gb-muted);
+}
+
+/* === 布局 === */
+.gb-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.gb-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.gb-group {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--gb-border-strong);
+  border-radius: var(--gb-radius-md);
+  padding: 12px;
+}
+
+.gb-group-title {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--gb-border);
+}
+
+/* === 进度条 === */
+.gb-progress-track {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.10);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.gb-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--gb-primary) 0%, var(--gb-secondary) 100%);
+  border-radius: 4px;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.gb-progress-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.35),
+    transparent
+  );
+  animation: gb-shimmer 2s infinite;
+}
+
+@keyframes gb-shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* === 动画 === */
+@keyframes gb-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes gb-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes gb-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.gb-spin {
+  animation: gb-spin 1s linear infinite;
+}
+
+.gb-pulse {
+  animation: gb-pulse 2s ease-in-out infinite;
+}
+
+/* === 发光 === */
+.gb-glow-primary {
+  box-shadow: 0 0 24px rgba(96, 165, 250, 0.45);
+}
+
+.gb-glow-accent {
+  box-shadow: 0 0 24px rgba(251, 191, 36, 0.45);
+}
+
+/* === 滚动条 === */
+.gb-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.gb-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.gb-scroll::-webkit-scrollbar-thumb {
+  background-color: rgba(160, 160, 184, 0.35);
+  border-radius: 3px;
+}
+
+.gb-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(160, 160, 184, 0.55);
+}

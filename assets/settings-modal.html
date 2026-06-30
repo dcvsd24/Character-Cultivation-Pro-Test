@@ -4,75 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>脚本设置</title>
+    <link rel="stylesheet" href="theme.css">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
         body {
-            background: transparent;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
-            overflow: hidden;
-            user-select: none;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
         }
 
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
         .modal-box {
             width: 1100px;
             max-height: 98vh;
-            background: linear-gradient(135deg, rgba(20, 25, 40, 0.95), rgba(30, 35, 55, 0.95));
-            border-radius: 10px;
             padding: 18px 22px;
-            color: #fff;
-            box-shadow:
-                0 8px 32px rgba(0, 0, 0, 0.4),
-                0 0 0 1px rgba(255, 255, 255, 0.1),
-                inset 0 1px 0 rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
             transform: translate(-80px, -5px);
             overflow: hidden;
-        }
-
-        /* 画框线条装饰 */
-        .modal-box::before {
-            content: '';
-            position: absolute;
-            top: 6px;
-            left: 6px;
-            right: 6px;
-            bottom: 6px;
-            border: 2px solid rgba(118, 15, 177, 0.879);
-            border-radius: 6px;
-            pointer-events: none;
-        }
-
-        .modal-box::after {
-            content: '';
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            right: 10px;
-            bottom: 10px;
-            border: 1px solid rgba(136, 61, 233, 0.496);
-            border-radius: 5px;
-            pointer-events: none;
         }
 
         .modal-header {
@@ -80,250 +26,119 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--gb-border);
         }
 
-        .modal-title {
-            font-size: 20px;
-            font-weight: 600;
-            color: #c79ee0;
+        .title-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
         .all-zero-hint {
-            margin-left: 10px;
             font-size: 15px;
-            color: #fbbf24;
+            color: var(--gb-warning);
             display: none;
         }
 
-        @keyframes hintFadeInOut {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
-        }
-
-        .close-btn {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: #fff;
-            width: 32px;
-            height: 32px;
-            border-radius: 6px;
-            cursor: pointer;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 16px;
-            transition: all 0.2s;
-        }
-
-        .close-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
+        .countdown-text {
+            font-size: 14px;
+            color: var(--gb-warning);
+            text-align: right;
+            white-space: nowrap;
         }
 
         .settings-container {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 10px;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            max-height: calc(98vh - 130px);
+            overflow-y: auto;
+            padding-right: 4px;
         }
 
         .setting-group {
-            background: rgba(40, 45, 60, 0.6);
-            border: 1px solid rgba(136, 61, 233, 0.3);
-            border-radius: 6px;
-            padding: 8px 10px;
-        }
-        
-        /* 必填设置组不再占满整行 */
-        .setting-group:first-child {
-            grid-column: auto;
-        }
-
-        /* Wiki设置组不再占满整行 */
-        .setting-group.wiki-group {
-            grid-column: auto;
-        }
-
-        .setting-group-title {
-            font-size: 15px;
-            font-weight: 600;
-            color: #c79ee0;
-            margin-bottom: 8px;
-            padding-bottom: 5px;
-            border-bottom: 1px solid rgba(136, 61, 233, 0.2);
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--gb-border-strong);
+            border-radius: var(--gb-radius-md);
+            padding: 12px;
         }
 
         .setting-item {
             display: flex;
             flex-direction: column;
-            gap: 4px;
-            margin-bottom: 8px;
+            gap: 5px;
+            margin-bottom: 10px;
         }
 
         .setting-item:last-child {
             margin-bottom: 0;
         }
 
-        .setting-item-inline {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 5px;
-        }
-
-        .setting-label {
-            font-size: 14px;
-            color: #e0e0e0;
-            line-height: 1.4;
-        }
-
-        .setting-input {
-            background: rgba(20, 25, 40, 0.8);
-            border: 1px solid rgba(136, 61, 233, 0.3);
-            color: #fff;
-            padding: 6px 10px;
-            border-radius: 4px;
-            font-size: 14px;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-
-        .setting-input:focus {
-            border-color: rgba(136, 61, 233, 0.6);
-        }
-
-        .setting-select {
-            background: rgba(20, 25, 40, 0.8);
-            border: 1px solid rgba(136, 61, 233, 0.3);
-            color: #fff;
-            padding: 6px 10px;
-            border-radius: 4px;
-            font-size: 14px;
-            outline: none;
-            cursor: pointer;
-        }
-
-        .setting-checkbox {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .checkbox-input {
-            width: 16px;
-            height: 16px;
-            accent-color: #764ba2;
-            cursor: pointer;
-        }
-
-        .checkbox-label {
-            font-size: 14px;
-            color: #e0e0e0;
-            cursor: pointer;
-            line-height: 1.4;
-        }
-
-        .required-label {
-            color: #f59e0b;
-        }
-
         .button-group {
             display: flex;
             gap: 10px;
-            margin-top: 12px;
+            margin-top: 14px;
             justify-content: flex-end;
         }
 
-        .btn {
-            padding: 10px 24px;
-            font-size: 15px;
-            font-weight: 600;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #fff;
-            border: none;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
-        }
-
-        .btn-secondary {
-            background: rgba(255, 255, 255, 0.1);
-            color: #fff;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        .countdown-text {
-            font-size: 14px;
-            color: #f59e0b;
-            text-align: right;
-            white-space: nowrap;
-        }
-
-        /* Wiki模式下的武器名称输入框 */
         .wiki-weapon-input {
             display: none;
             margin-top: 4px;
+            gap: 4px;
+            flex-direction: column;
         }
 
         .wiki-weapon-input.show {
             display: flex;
-            flex-direction: column;
-            gap: 3px;
+        }
+
+        .hint-text {
+            color: var(--gb-warning);
+            font-size: 13px;
+            line-height: 1.5;
         }
     </style>
 </head>
 <body>
-    <div class="modal-overlay">
-        <div class="modal-box">
+    <div class="gb-overlay">
+        <div class="modal-box gb-glass gb-frame" id="modalBox">
             <div class="modal-header">
-                <div style="display: flex; align-items: center;">
-                    <div class="modal-title">⚙️ 脚本设置配置</div>
+                <div class="title-row">
+                    <div class="gb-title gb-gradient-text">⚙️ 脚本设置配置</div>
                     <span class="all-zero-hint" id="allZeroHint">角色材料已全部收集完成！请配置新的角色。</span>
                 </div>
-                <div style="display: flex; align-items: center; gap: 10px;">
+                <div class="title-row">
                     <span class="countdown-text" id="countdownText">30秒后自动关闭</span>
-                    <button class="close-btn" id="cancelBtn">✕</button>
+                    <button class="gb-btn gb-btn-secondary gb-btn-icon" id="cancelBtn">✕</button>
                 </div>
             </div>
-            
-            <div class="settings-container">
-                <!-- 第一行：必填设置、突破等级、Wiki模式 -->
-                
+
+            <div class="settings-container gb-scroll">
                 <!-- 必填设置 -->
                 <div class="setting-group">
-                    <div class="setting-group-title">📌 必填设置</div>
+                    <div class="gb-group-title gb-gradient-text-gold">📌 必填设置</div>
                     <div class="setting-item">
-                        <label class="setting-label required-label">【角色名称】不要输错角色名称</label>
-                        <input type="text" id="Character" class="setting-input" placeholder="请输入角色名称">
+                        <label class="gb-label gb-label-required">【角色名称】不要输错角色名称</label>
+                        <input type="text" id="Character" class="gb-input" placeholder="请输入角色名称">
                     </div>
                     <div class="setting-item">
-                        <label class="setting-label">【战斗队伍】秘境和boss挑战前切换</label>
-                        <input type="text" id="teamName" class="setting-input" placeholder="必填">
+                        <label class="gb-label">【战斗队伍】秘境和boss挑战前切换</label>
+                        <input type="text" id="teamName" class="gb-input" placeholder="必填">
                     </div>
                     <div class="setting-item">
-                        <label class="setting-label">【采集队伍】采集时需要草神,水,雷,风元素等角色</label>
-                        <input type="text" id="teamName2" class="setting-input" placeholder="必填">
+                        <label class="gb-label">【采集队伍】采集时需要草神,水,雷,风元素等角色</label>
+                        <input type="text" id="teamName2" class="gb-input" placeholder="必填">
                     </div>
                 </div>
-                
+
                 <!-- 突破等级设置 -->
                 <div class="setting-group">
-                    <div class="setting-group-title">📈 目标突破等级（你想要升到多少级）</div>
-                    
+                    <div class="gb-group-title gb-gradient-text-gold">📈 目标突破等级（你想要升到多少级）</div>
                     <div class="setting-item">
-                        <label class="setting-label">角色突破目标等级（80级对应90级）</label>
-                        <select id="bossRequireCounts" class="setting-select">
+                        <label class="gb-label">角色突破目标等级（80级对应90级）</label>
+                        <select id="bossRequireCounts" class="gb-select">
                             <option value="80级">80级</option>
                             <option value="70级">70级</option>
                             <option value="60级">60级</option>
@@ -332,10 +147,9 @@
                             <option value="20级">20级</option>
                         </select>
                     </div>
-                    
                     <div class="setting-item">
-                        <label class="setting-label">武器突破目标等级（80级对应90级）</label>
-                        <select id="weaponMaterialRequireCounts" class="setting-select">
+                        <label class="gb-label">武器突破目标等级（80级对应90级）</label>
+                        <select id="weaponMaterialRequireCounts" class="gb-select">
                             <option value="80级">80级</option>
                             <option value="70级">70级</option>
                             <option value="60级">60级</option>
@@ -344,61 +158,54 @@
                             <option value="20级">20级</option>
                         </select>
                     </div>
-                    
                     <div class="setting-item">
-                        <label class="setting-label">天赋等级(x-y-z，普攻-战技-大招)</label>
-                        <input type="text" id="talentBookRequireCounts" class="setting-input" placeholder="1-10-10" value="1-10-10">
+                        <label class="gb-label">天赋等级(x-y-z，普攻-战技-大招)</label>
+                        <input type="text" id="talentBookRequireCounts" class="gb-input" placeholder="1-10-10" value="1-10-10">
                     </div>
                 </div>
-                
+
                 <!-- Wiki模式设置 -->
-                <div class="setting-group wiki-group">
-                    <div class="setting-group-title">🌐 Wiki模式</div>
+                <div class="setting-group">
+                    <div class="gb-group-title gb-gradient-text-gold">🌐 Wiki模式</div>
                     <div class="setting-item">
-                        <div class="setting-checkbox">
-                            <input type="checkbox" id="enableWikiDataFetch" class="checkbox-input">
-                            <label class="checkbox-label" for="enableWikiDataFetch">启用Wiki模式，从网页获取Boss、天赋怪物、区域特产、天赋书名称</label>
-                        </div>
+                        <label class="gb-checkbox">
+                            <input type="checkbox" id="enableWikiDataFetch">
+                            <span>启用Wiki模式，从网页获取Boss、天赋怪物、区域特产、天赋书名称</span>
+                        </label>
                     </div>
                     <div class="wiki-weapon-input" id="wikiWeaponInput">
-                        <label class="setting-label">【武器名称】用于获取武材料信息</label>
-                        <input type="text" id="weaponName" class="setting-input" placeholder="请输入武器名称(请不要输错武器名称)">
+                        <label class="gb-label">【武器名称】用于获取武器材料信息</label>
+                        <input type="text" id="weaponName" class="gb-input" placeholder="请输入武器名称(请不要输错武器名称)">
                     </div>
-                    <div class="setting-item" style="margin-top: 10px;">
-                        <label class="setting-label" style="color: #fbbf24; font-size: 13px; line-height: 1.5;">
+                    <div class="setting-item">
+                        <label class="hint-text">
                             💡 未获取角色时使用，默认背包材料为零，获取角色和武器升到90级需要的材料，如果已经获取了角色，请关闭。不关闭会一直获取 [不消耗树脂] 的角色材料。
                         </label>
                     </div>
                 </div>
-                
-                <!-- 第二行：其他选项、必须勾选、UID遮挡 -->
-                
+
                 <!-- 其他选项 -->
                 <div class="setting-group">
-                    <div class="setting-group-title">🔧 其他选项</div>
-                    
+                    <div class="gb-group-title gb-gradient-text-gold">🔧 其他选项</div>
                     <div class="setting-item">
-                        <div class="setting-checkbox">
-                            <input type="checkbox" id="isNoGrassGod" class="checkbox-input">
-                            <label class="checkbox-label" for="isNoGrassGod">排除需要草神的线路，队伍内无草神时请勾选。</label>
-                        </div>
+                        <label class="gb-checkbox">
+                            <input type="checkbox" id="isNoGrassGod">
+                            <span>排除需要草神的线路，队伍内无草神时请勾选。</span>
+                        </label>
                     </div>
-                    
                     <div class="setting-item">
-                        <div class="setting-checkbox">
-                            <input type="checkbox" id="energyMax" class="checkbox-input">
-                            <label class="checkbox-label" for="energyMax">Boss挑战前恢复满大招能量</label>
-                        </div>
+                        <label class="gb-checkbox">
+                            <input type="checkbox" id="energyMax">
+                            <span>Boss挑战前恢复满大招能量</span>
+                        </label>
                     </div>
-                    
                     <div class="setting-item">
-                        <label class="setting-label">战斗策略名称（为空则使用默认策略）</label>
-                        <input type="text" id="strategyName" class="setting-input" placeholder="可选，如：四神队.txt">
+                        <label class="gb-label">战斗策略名称（为空则使用默认策略）</label>
+                        <input type="text" id="strategyName" class="gb-input" placeholder="可选，如：四神队.txt">
                     </div>
-                    
                     <div class="setting-item">
-                        <label class="setting-label">地脉之花地区</label>
-                        <select id="adventurePath" class="setting-select">
+                        <label class="gb-label">地脉之花地区</label>
+                        <select id="adventurePath" class="gb-select">
                             <option value="蒙德">蒙德</option>
                             <option value="璃月">璃月</option>
                             <option value="稻妻">稻妻</option>
@@ -408,59 +215,53 @@
                         </select>
                     </div>
                 </div>
-                
-                <!-- 必须勾选 -->
+
+                <!-- 功能设置 -->
                 <div class="setting-group">
-                    <div class="setting-group-title">功能设置</div>
-                    
+                    <div class="gb-group-title gb-gradient-text-gold">功能设置</div>
                     <div class="setting-item">
-                        <div class="setting-checkbox">
-                            <input type="checkbox" id="unfairContractTerms" class="checkbox-input">
-                            <label class="checkbox-label" for="unfairContractTerms" style="color: #ffc107;">⚠️签署霸王条款开启使用，出了事跟作者无关</label>
-                        </div>
+                        <label class="gb-checkbox">
+                            <input type="checkbox" id="unfairContractTerms">
+                            <span style="color: var(--gb-warning);">⚠️ 签署霸王条款开启使用，出了事跟作者无关</span>
+                        </label>
                     </div>
-                    
                     <div class="setting-item">
-                        <div class="setting-checkbox">
-                            <input type="checkbox" id="checkVersionEnabled" class="checkbox-input" checked>
-                            <label class="checkbox-label" for="checkVersionEnabled">启用版本检查</label>
-                        </div>
+                        <label class="gb-checkbox">
+                            <input type="checkbox" id="checkVersionEnabled" checked>
+                            <span>启用版本检查</span>
+                        </label>
                     </div>
-                    
                     <div class="setting-item">
-                        <div class="setting-checkbox">
-                            <input type="checkbox" id="showSettingsOnStartup" class="checkbox-input" checked>
-                            <label class="checkbox-label" for="showSettingsOnStartup">每次启动弹出设置弹窗</label>
-                        </div>
+                        <label class="gb-checkbox">
+                            <input type="checkbox" id="showSettingsOnStartup" checked>
+                            <span>每次启动弹出设置弹窗</span>
+                        </label>
                     </div>
                 </div>
-                
-                <!-- UID遮挡设置 -->
+
+                <!-- UID遮挡 -->
                 <div class="setting-group">
-                    <div class="setting-group-title">🔒 UID遮挡</div>
-                    
+                    <div class="gb-group-title gb-gradient-text-gold">🔒 UID遮挡</div>
                     <div class="setting-item">
-                        <div class="setting-checkbox">
-                            <input type="checkbox" id="enableUidMask" class="checkbox-input">
-                            <label class="checkbox-label" for="enableUidMask">启用左上角UID遮挡</label>
-                        </div>
+                        <label class="gb-checkbox">
+                            <input type="checkbox" id="enableUidMask">
+                            <span>启用左上角UID遮挡</span>
+                        </label>
                     </div>
-                    
                     <div class="setting-item">
-                        <label class="setting-label">X坐标（距左边像素，数值增大向右移动默认31）</label>
-                        <input type="text" id="uidMaskPositionX" class="setting-input" placeholder="31" value="31">
+                        <label class="gb-label">X坐标（距左边像素，数值增大向右移动默认31）</label>
+                        <input type="text" id="uidMaskPositionX" class="gb-input" placeholder="31" value="31">
                     </div>
-                    
                     <div class="setting-item">
-                        <label class="setting-label">Y坐标（距上边像素，数值增大向下移动默认117）</label>
-                        <input type="text" id="uidMaskPositionY" class="setting-input" placeholder="117" value="117">
+                        <label class="gb-label">Y坐标（距上边像素，数值增大向下移动默认117）</label>
+                        <input type="text" id="uidMaskPositionY" class="gb-input" placeholder="117" value="117">
                     </div>
                 </div>
             </div>
-            
+
             <div class="button-group">
-                <button class="btn btn-secondary" id="cancelBtn2">取消</button>
-                <button class="btn btn-primary" id="saveBtn">保存并运行</button>
+                <button class="gb-btn gb-btn-secondary" id="cancelBtn2">取消</button>
+                <button class="gb-btn gb-btn-primary" id="saveBtn">保存并运行</button>
             </div>
         </div>
     </div>
@@ -470,7 +271,6 @@
         let countdownInterval = null;
         let isClosed = false;
 
-        // Wiki模式切换时显示/隐藏武器名称输入框
         function toggleWikiWeaponInput() {
             const wikiCheckbox = document.getElementById('enableWikiDataFetch');
             const weaponInputDiv = document.getElementById('wikiWeaponInput');
@@ -481,12 +281,9 @@
             }
         }
 
-        // 重置倒计时（用户操作时调用）
         function resetCountdown() {
             countdown = 30;
             document.getElementById('countdownText').textContent = countdown + '秒后自动关闭';
-            
-            // 通知主脚本用户正在操作
             if (window.htmlMask) {
                 try {
                     window.htmlMask.request('/userActive', '{}');
@@ -496,7 +293,6 @@
             }
         }
 
-        // 更新倒计时显示
         function updateCountdown() {
             countdown--;
             document.getElementById('countdownText').textContent = countdown + '秒后自动关闭';
@@ -505,7 +301,6 @@
             }
         }
 
-        // 关闭窗口
         function closeWindow(action) {
             if (isClosed) return;
             isClosed = true;
@@ -513,13 +308,11 @@
                 clearInterval(countdownInterval);
                 countdownInterval = null;
             }
-            // 通知 JS 端关闭窗口
             if (window.htmlMask) {
                 window.htmlMask.request('/close', JSON.stringify({ action: action }));
             }
         }
 
-        // 保存设置
         function saveSettings() {
             const settings = {
                 Character: document.getElementById('Character').value.trim(),
@@ -543,12 +336,10 @@
             };
 
             if (window.htmlMask) {
-                // 只发送 /save 消息，让主脚本关闭窗口
                 window.htmlMask.request('/save', JSON.stringify(settings));
             }
         }
 
-        // 初始化设置值
         function initSettings(data) {
             try {
                 const settings = typeof data === 'string' ? JSON.parse(data) : data;
@@ -570,16 +361,14 @@
                 document.getElementById('enableUidMask').checked = settings.enableUidMask || false;
                 document.getElementById('uidMaskPositionX').value = settings.uidMaskPositionX || '31';
                 document.getElementById('uidMaskPositionY').value = settings.uidMaskPositionY || '117';
-                
-                // 初始化Wiki武器名称输入框显示状态
+
                 toggleWikiWeaponInput();
-                
-                // 全零提示
+
                 if (settings.showAllZeroHint) {
                     const hintEl = document.getElementById('allZeroHint');
                     if (hintEl) {
-                        hintEl.style.display = 'inline-block';
-                        hintEl.style.animation = 'hintFadeInOut 2s ease-in-out infinite';
+                        hintEl.style.display = 'inline';
+                        hintEl.classList.add('gb-pulse');
                     }
                 }
             } catch (e) {
@@ -587,34 +376,28 @@
             }
         }
 
-        // 关闭按钮点击事件
         document.getElementById('cancelBtn').addEventListener('click', () => closeWindow('cancel'));
         document.getElementById('cancelBtn2').addEventListener('click', () => closeWindow('cancel'));
         document.getElementById('saveBtn').addEventListener('click', saveSettings);
 
-        // Wiki模式切换事件
         document.getElementById('enableWikiDataFetch').addEventListener('change', function() {
             toggleWikiWeaponInput();
             resetCountdown();
         });
 
-        // 用户操作时重置倒计时
-        document.querySelectorAll('.setting-input, .setting-select').forEach(el => {
+        document.querySelectorAll('.gb-input, .gb-select').forEach(el => {
             el.addEventListener('focus', resetCountdown);
             el.addEventListener('change', resetCountdown);
             el.addEventListener('input', resetCountdown);
         });
-        document.querySelectorAll('.checkbox-input').forEach(el => {
+        document.querySelectorAll('input[type="checkbox"]').forEach(el => {
             el.addEventListener('change', resetCountdown);
         });
 
-        // 初始化
         function init() {
-            // 启动倒计时
             countdownInterval = setInterval(updateCountdown, 1000);
 
             if (window.htmlMask) {
-                // 设置消息回调
                 window.htmlMask.onMessage = function(msg) {
                     try {
                         const parsed = typeof msg === 'string' ? JSON.parse(msg) : msg;
@@ -625,7 +408,6 @@
                         console.error('消息解析失败:', e);
                     }
                 };
-                // 通知脚本就绪
                 try {
                     window.htmlMask.request('/ready', '{}');
                 } catch (e) {
@@ -634,7 +416,6 @@
             }
         }
 
-        // 启动
         try {
             init();
         } catch (e) {

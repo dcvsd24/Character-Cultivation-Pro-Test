@@ -7,10 +7,12 @@ const MODULES = [
     "lib/checkVersion.js",
     "lib/constants.js",
     "lib/utils.js",
+    "lib/progressLogger.js",
     "lib/taskManager.js",
     "lib/ocrHelper.js",
     "lib/navigation.js",
     "lib/combat.js",
+    "lib/inventoryRecordWriter.js",
     "lib/inventory.js",
     "lib/farming.js",
     "lib/collection.js",
@@ -21,6 +23,7 @@ const MODULES = [
     "lib/file_utils.js",
     "lib/overlay.js",
     "lib/wiki.js",
+    "lib/configGenerator.js",
     "lib/leyLine.js"
 ];
 
@@ -39,7 +42,7 @@ log.info("所有模块加载完成");
 
 // 模块加载验证
 function checkModulesLoaded() {
-    const requiredModules = ['Constants', 'Utils', 'TaskManager', 'OcrHelper', 'Navigation', 'Combat', 'Inventory', 'Farming', 'Collection', 'Character', 'ImageRecognition', 'FileUtils', 'expCalculator', 'moraCalculation', 'resinCalculation'];
+    const requiredModules = ['Constants', 'Utils', 'ProgressLogger', 'TaskManager', 'OcrHelper', 'Navigation', 'Combat', 'InventoryRecordWriter', 'Inventory', 'Farming', 'Collection', 'Character', 'ImageRecognition', 'FileUtils', 'expCalculator', 'moraCalculation', 'resinCalculation', 'CultivationMaterialCalculator', 'ConfigGenerator'];
     const missingModules = [];
 
     for (const moduleName of requiredModules) {
@@ -420,6 +423,12 @@ const Main = async () => {
         
         // 加载设置
         loadSettingsFromJson();
+
+        try {
+            await ConfigGenerator.generateFromUserSettings();
+        } catch (configError) {
+            log.warn(`自动生成运行配置失败，将继续使用现有配置: ${configError.message}`);
+        }
         
         // 显示 UID 遮挡图片（如果启用）- 需要在 loadSettingsFromJson 之后调用
         if (settings.enableUidMask) {
@@ -1658,6 +1667,19 @@ async function executeMaterialCollection(options) {
     // 读取当前需求量（统一从config读取，Wiki模式下已在开头设置默认值）
     const config = Utils.readJson(Constants.CONFIG_PATH);
     const currentAmount = Number(config[configKey]) || 0;
+    const progressCharacterName = getStandardCharacterName(settings.Character) || (settings.Character ? settings.Character.trim() : "未知角色");
+    const progressMaterialName = Array.isArray(keywords) ? keywords.join(', ') : (keywords || materialType);
+    if (typeof ProgressLogger !== "undefined") {
+        ProgressLogger.upsert({
+            uid: currentUid,
+            characterName: progressCharacterName,
+            materialType: type,
+            materialName: progressMaterialName,
+            targetAmount: currentAmount,
+            remainingAmount: currentAmount,
+            status: currentAmount <= 0 ? "completed" : "running"
+        });
+    }
     
     if (currentAmount <= 0) {
         log.info(`[${materialType}] 需求数量为0，跳过执行`);
