@@ -14,6 +14,9 @@ WebView2Data/
 bgi脚本开发文档/
 pathing/
 
+# Genshin Planner 子项目（单独管理）
+genshin-planner/
+
 # 临时文件
 *.tmp
 *.log

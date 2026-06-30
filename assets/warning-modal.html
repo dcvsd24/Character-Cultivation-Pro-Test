@@ -4,122 +4,43 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>提示</title>
+    <link rel="stylesheet" href="theme.css">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
         body {
-            background: transparent;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
-            overflow: hidden;
-            user-select: none;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
         }
 
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
         .modal-box {
             width: 420px;
-            background: linear-gradient(135deg, rgba(20, 25, 40, 0.95), rgba(30, 35, 55, 0.95));
-            border-radius: 12px;
-            padding: 32px;
-            color: #fff;
-            box-shadow:
-                0 8px 32px rgba(0, 0, 0, 0.4),
-                0 0 0 1px rgba(255, 255, 255, 0.1),
-                inset 0 1px 0 rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
             text-align: center;
-            transform: translate(-80px, -50px);
+            padding: 32px;
             opacity: 0;
-            transition: opacity 0.2s ease;
+            transition: opacity 0.25s ease;
         }
 
         .modal-box.visible {
             opacity: 1;
         }
 
-        /* 画框线条装饰 */
-        .modal-box::before {
-            content: '';
-            position: absolute;
-            top: 8px;
-            left: 8px;
-            right: 8px;
-            bottom: 8px;
-            border: 2px solid rgba(118, 15, 177, 0.879);
-            border-radius: 8px;
-            pointer-events: none;
-        }
-
-        .modal-box::after {
-            content: '';
-            position: absolute;
-            top: 12px;
-            left: 12px;
-            right: 12px;
-            bottom: 12px;
-            border: 1px solid rgba(136, 61, 233, 0.496);
-            border-radius: 6px;
-            pointer-events: none;
-        }
-
         .warning-icon {
             font-size: 48px;
-            color: #f59e0b;
             margin-bottom: 16px;
         }
 
         .modal-title {
             font-size: 20px;
-            font-weight: 600;
-            color: #c79ee0;
+            font-weight: 700;
             margin-bottom: 16px;
         }
 
         .modal-message {
             font-size: 16px;
-            color: #e0e0e0;
+            color: var(--gb-muted);
             line-height: 1.6;
             margin-bottom: 24px;
-        }
-
-        .close-btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #fff;
-            border: none;
-            padding: 12px 32px;
-            font-size: 16px;
-            font-weight: 600;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-        }
-
-        .close-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
-        }
-
-        .close-btn:active {
-            transform: translateY(0);
         }
 
         .btn-group {
@@ -128,44 +49,22 @@
             justify-content: center;
         }
 
-        .agree-btn {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            color: #fff;
-            border: none;
-            padding: 12px 32px;
-            font-size: 16px;
-            font-weight: 600;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-        }
-
-        .agree-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
-        }
-
-        .agree-btn:active {
-            transform: translateY(0);
-        }
-
         .countdown-text {
             font-size: 14px;
-            color: #f59e0b;
+            color: var(--gb-warning);
             margin-top: 16px;
         }
     </style>
 </head>
 <body>
-    <div class="modal-overlay">
-        <div class="modal-box">
+    <div class="gb-overlay">
+        <div class="modal-box gb-glass gb-frame" id="modalBox">
             <div class="warning-icon">⚠️</div>
-            <div class="modal-title" id="modalTitle">未签署霸王条款</div>
+            <div class="modal-title gb-gradient-text" id="modalTitle">未签署霸王条款</div>
             <div class="modal-message" id="modalMessage">请先右键点击脚本名称选择 [ 打开脚本所在目录 ] 阅读README.md文档然后修改脚本自定义配置。</div>
             <div class="btn-group">
-                <button class="agree-btn" id="agreeBtn">同意</button>
-                <button class="close-btn" id="closeBtn">关闭</button>
+                <button class="gb-btn gb-btn-success" id="agreeBtn">同意</button>
+                <button class="gb-btn gb-btn-primary" id="closeBtn">关闭</button>
             </div>
             <div class="countdown-text" id="countdownText">20秒后自动关闭</div>
         </div>
@@ -176,7 +75,6 @@
         let countdownInterval = null;
         let isClosed = false;
 
-        // 更新倒计时显示
         function updateCountdown() {
             countdown--;
             document.getElementById('countdownText').textContent = countdown + '秒后自动关闭';
@@ -185,7 +83,6 @@
             }
         }
 
-        // 关闭窗口
         function closeWindow() {
             if (isClosed) return;
             isClosed = true;
@@ -193,13 +90,11 @@
                 clearInterval(countdownInterval);
                 countdownInterval = null;
             }
-            // 通知 JS 端关闭窗口
             if (window.htmlMask) {
                 window.htmlMask.request('/close', '{}');
             }
         }
 
-        // 同意并关闭
         function agreeAndClose() {
             if (isClosed) return;
             isClosed = true;
@@ -207,80 +102,63 @@
                 clearInterval(countdownInterval);
                 countdownInterval = null;
             }
-            // 通知 JS 端用户同意
             if (window.htmlMask) {
                 window.htmlMask.request('/agree', '{}');
             }
         }
 
-        // 关闭按钮点击事件
         document.getElementById('closeBtn').addEventListener('click', closeWindow);
-
-        // 同意按钮点击事件
         document.getElementById('agreeBtn').addEventListener('click', agreeAndClose);
 
-        // 初始化弹窗内容
         function initModalContent(config) {
-            // 设置标题
             if (config.title) {
                 document.getElementById('modalTitle').textContent = config.title;
             }
-            // 设置消息
             if (config.message) {
                 document.getElementById('modalMessage').textContent = config.message;
             }
-            // 设置倒计时时长
             if (config.timeout) {
                 countdown = config.timeout;
                 document.getElementById('countdownText').textContent = countdown + '秒后自动关闭';
             }
-            // 是否显示同意按钮
             if (config.showAgreeBtn) {
-                document.getElementById('agreeBtn').style.display = 'inline-block';
+                document.getElementById('agreeBtn').style.display = 'inline-flex';
             } else {
                 document.getElementById('agreeBtn').style.display = 'none';
             }
-            // 显示弹窗
-            document.querySelector('.modal-box').classList.add('visible');
+            document.getElementById('modalBox').classList.add('visible');
         }
 
-        // 初始化
         function init() {
-            // 启动倒计时
             countdownInterval = setInterval(updateCountdown, 1000);
 
-            // 设置超时机制：如果 3 秒内没有收到初始化数据，就显示弹窗（使用默认内容）
             const showTimeout = setTimeout(() => {
-                document.querySelector('.modal-box').classList.add('visible');
+                document.getElementById('modalBox').classList.add('visible');
             }, 3000);
 
             if (window.htmlMask) {
-                // 设置消息回调
                 window.htmlMask.onMessage = function(msg) {
                     try {
                         const parsed = typeof msg === 'string' ? JSON.parse(msg) : msg;
                         if (parsed.url === '/initError') {
-                            clearTimeout(showTimeout); // 收到初始化数据，取消超时显示
+                            clearTimeout(showTimeout);
                             initModalContent(parsed.data);
                         }
                     } catch (e) {
                         console.error('消息解析失败:', e);
                     }
                 };
-                // 通知脚本就绪
                 try {
                     window.htmlMask.request('/ready', '{}');
                 } catch (e) {
                     console.error('ready 请求异常:', e);
                 }
             } else {
-                // 如果 htmlMask 不存在，立即显示弹窗
                 clearTimeout(showTimeout);
-                document.querySelector('.modal-box').classList.add('visible');
+                document.getElementById('modalBox').classList.add('visible');
             }
         }
 
-        // 启动
         try {
             init();
         } catch (e) {
